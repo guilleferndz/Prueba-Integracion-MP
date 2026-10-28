@@ -1,0 +1,30 @@
+{
+  "name": "backend-esp32-mercadopago",
+  "version": "1.0.0",
+  "description": "Backend intermediario profesional para cobros por QR con ESP32 y Mercado Pago",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "esp32",
+    "node",
+    "mercadopago",
+    "websocket",
+    "webhook",
+    "qr-code"
+  ],
+  "author": "Guillermo Luis Fernandez",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mercadopago": "^2.0.11",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
