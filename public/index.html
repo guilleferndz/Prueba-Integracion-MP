@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoreo PuntoEléctrico.ar</title>
+  <!-- Tailwind CSS para diseño rápido -->
+  <script src="https://tailwindcss.com"></script>
+  <!-- Pusher JS -->
+  <script src="https://pusher.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
+
+  <div class="container mx-auto p-6">
+    <header class="flex justify-between items-center border-b border-gray-700 pb-4 mb-6">
+      <h1 class="text-2xl font-bold text-yellow-400">⚡puntoelectrico.ar <span class="text-sm font-normal text-gray-400">| Panel de Control</span></h1>
+      <span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900 animate-pulse">SERVIDOR EN VIVO</span>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Sección Izquierda: Estado de Dispositivos -->
+      <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
+        <div class="p-3 bg-gray-700 rounded mb-2 flex justify-between items-center">
+          <div>
+            <p class="font-bold text-sm">CYD_ESP32_01</p>
+            <p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>
+          </div>
+          <span class="h-3 w-3 bg-green-400 rounded-full"></span>
+        </div>
+      </div>
+
+      <!-- Sección Central/Derecha: Flujo de Eventos en tiempo real -->
+      <div class="lg:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real (Websockets)</h2>
+        <div id="logs" class="space-y-2 h-[450px] overflow-y-auto pr-2">
+          <!-- Los eventos de Pusher se inyectarán acá -->
+          <p class="text-gray-500 text-sm italic">Esperando interacciones del ESP32 o Mercado Pago...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logsContainer = document.getElementById('logs');
+
+    // Función para pintar un evento en pantalla
+    function agregarEventoAlPanel(data) {
+      // Eliminar el mensaje de "esperando" la primera vez
+      if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
+
+      let colorOrigen = "bg-blue-600";
+      if(data.origen.includes("MP")) colorOrigen = "bg-blue-500";
+      if(data.origen.includes("CYD")) colorOrigen = "bg-yellow-500 text-gray-950";
+      if(data.origen.includes("ERROR")) colorOrigen = "bg-red-600";
+
+      const item = document.createElement('div');
+      item.className = "p-3 bg-gray-750 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2 transition-all duration-300 animate-fadeIn";
+      item.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-gray-400 font-mono">[${data.timestamp}]</span>
+          <span class="px-2 py-0.5 rounded text-xs font-bold ${colorOrigen}">${data.origen}</span>
+          <span class="text-gray-200">${data.message || data.mensaje}</span>
+        </div>
+      `;
+      logsContainer.insertBefore(item, logsContainer.firstChild);
+    }
+
+    // 1. Cargar historial inicial mediante HTTP al abrir la página
+    fetch('/api/historial')
+      .then(res => res.json())
+      .then(eventos => {
+        if(eventos.length > 0) logsContainer.innerHTML = "";
+        eventos.forEach(ev => agregarEventoAlPanel(ev));
+      });
+
+    // 2. Escuchar eventos en vivo mediante Pusher
+    const pusher = new Pusher('TU_PUSHER_KEY', {
+      cluster: 'TU_PUSHER_CLUSTER'
+    });
+
+    const channel = pusher.subscribe('canal-monitoreo');
+    channel.bind('nuevo-evento', function(data) {
+      agregarEventoAlPanel(data);
+    });
+  </script>
+</body>
+</html>
