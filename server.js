@@ -1,101 +1,111 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { WebSocketServer } = require('ws');
-const { MercadoPagoConfig, PaymentCardToken } = require('mercadopago');
+const { MercadoPagoConfig, Payment, Preference } = require('mercadopago');
+const Pusher = require('pusher');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Sirve tu index.html desde la carpeta public
+app.use(express.static(path.join(__dirname, 'public')));
 
-// CONFIGURACIÓN DE MERCADO PAGO
-// Asegurate de cargar tu ACCESS_TOKEN en las variables de entorno de Render
+// 1. CONFIGURACIÓN DE MERCADO PAGO
 const client = new MercadoPagoConfig({ 
-    accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN || 'TU_ACCESS_TOKEN_DE_PRUEBA' 
+    accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN
+});
+const payment = new Payment(client);
+
+// 2. CONFIGURACIÓN DE PUSHER
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true
 });
 
-// Almacenamiento temporal para conectar los dispositivos ESP32 por WebSocket
-const dispositivosConectados = new Map();
+const historialEventos = [];
 
-// RUTA HTTP: El ESP32 CYD o tu web llaman acá para generar el QR de cobro
+function registrarYNotificarEvento(origen, mensaje) {
+    const nuevoEvento = {
+        timestamp: new Date().toLocaleTimeString('es-AR'),
+        origen: origen,
+        mensaje: mensaje
+    };
+    historialEventos.unshift(nuevoEvento);
+    if (historialEventos.length > 50) historialEventos.pop();
+
+    pusher.trigger('canal-monitoreo', 'nuevo-evento', nuevoEvento)
+        .catch(err => console.error('[PUSHER] Error:', err));
+}
+
+app.get('/api/historial', (req, res) => {
+    res.json(historialEventos);
+});
+
+// Generación Real de QR / Preferencia de Mercado Pago
 app.post('/api/crear-qr', async (req, res) => {
     const { deviceId, monto } = req.body;
-    console.log(`[HTTP] Solicitud de QR recibida de ${deviceId} por un monto de $${monto}`);
+    console.log(`[HTTP] Solicitud de QR: ${deviceId} por $${monto}`);
+    registrarYNotificarEvento(deviceId || "CYD_ESP32", `Solicitó QR de cobro por $${monto}`);
 
     try {
-        // Acá irá tu lógica oficial de Mercado Pago para generar la orden/QR dinámico
-        // Simulamos una respuesta exitosa devolviendo un string string_qr para el micro
-        const qrSimulado = `https://mercadopago.com.ar{deviceId}-${monto}`;
-        
+        const preference = new Preference(client);
+        const response = await preference.create({
+            body: {
+                items: [{
+                    title: `Carga Punto Eléctrico - ${deviceId}`,
+                    quantity: 1,
+                    unit_price: Number(monto),
+                    currency_id: 'ARS'
+                }],
+                notification_url: `https://puntoelectrico.ar`,
+                external_reference: deviceId
+            }
+        });
+
+        // Retornamos el init_point para que pueda ser mapeado a QR
         res.json({
             success: true,
-            qr_data: qrSimulado
+            qr_data: response.init_point 
         });
     } catch (error) {
-        console.error('[HTTP] Error al generar el QR:', error);
+        console.error('[HTTP] Error generando QR:', error);
+        registrarYNotificarEvento("ERROR", `Fallo al generar QR: ${error.message}`);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// RUTA HTTP (WEBHOOK): Mercado Pago te avisa acá cuando un pago cambia de estado
-app.post('/api/webhook', (req, res) => {
-    console.log('[WEBHOOK] Notificación recibida de Mercado Pago:', req.body);
-    
-    // Respondemos rápido a Mercado Pago para evitar reintentos innecesarios
-    res.sendStatus(200);
+// Recibir Webhook Real de Mercado Pago
+app.post('/api/webhook', async (req, res) => {
+    res.sendStatus(200); // Responder rápido a MP
+    const { type, data } = req.body;
 
-    // SIMULACIÓN DE COMPRA EXITOSA: 
-    // Cuando impacte un pago aprobado, buscamos el dispositivo y le enviamos la alerta por WS
-    const deviceIdDestino = "ESP32_CYD_001"; // Esto lo vas a mapear dinámicamente según el pago
-    const wsCliente = dispositivosConectados.get(deviceIdDestino);
+    if (type === 'payment' && data && data.id) {
+        try {
+            const pagoInfo = await payment.get({ id: data.id });
+            const estado = pagoInfo.status;
+            const deviceIdDestino = pagoInfo.external_reference || "CYD_ESP32_01";
 
-    if (wsCliente && wsCliente.readyState === 1) { // 1 significa abierto/OPEN
-        console.log(`[WS] Enviando señal de PAGO_APROBADO a dispositivo: ${deviceIdDestino}`);
-        wsCliente.send(JSON.stringify({
-            evento: "PAGO_APROBADO",
-            status: "approved"
-        }));
-    } else {
-        console.log(`[WS] El dispositivo ${deviceIdDestino} no está conectado actualmente.`);
+            registrarYNotificarEvento("MP_WEBHOOK", `Pago ID ${data.id} - Estado: ${estado}`);
+
+            if (estado === 'approved') {
+                // Notificamos en el canal de Pusher correspondiente a ese dispositivo físico
+                pusher.trigger(`device-${deviceIdDestino}`, 'pago-aprobado', {
+                    status: 'approved',
+                    amount: pagoInfo.transaction_amount
+                });
+                registrarYNotificarEvento("SERVER", `Alerta enviada al hardware ${deviceIdDestino}`);
+            }
+        } catch (error) {
+            console.error('[WEBHOOK] Error procesando pago:', error);
+            registrarYNotificarEvento("ERROR_MP", `Error Pago ID ${data.id}: ${error.message}`);
+        }
     }
 });
 
-// CORRECCIÓN PARA RENDER: Escuchar en el puerto dinámico de la plataforma
 const PORT = process.env.PORT || 10000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SERVER] Servidor Express corriendo en el puerto ${PORT}`);
-});
-
-// CONFIGURACIÓN DEL SERVIDOR WEBSOCKET
-const wss = new WebSocketServer({ server });
-
-wss.on('connection', (ws) => {
-    console.log('[WS] Nueva conexión física establecida.');
-
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            
-            // Cuando el ESP32 se conecta, envía su ID para quedar registrado en el mapa
-            if (data.evento === "REGISTRAR_DISPOSITIVO") {
-                const deviceId = data.deviceId;
-                dispositivosConectados.set(deviceId, ws);
-                console.log(`[WS] Dispositivo registrado con éxito: ID -> ${deviceId}`);
-            }
-        } catch (e) {
-            console.error('[WS] Error al procesar mensaje JSON entrante:', e.message);
-        }
-    });
-
-    ws.on('close', () => {
-        // Limpieza del mapa al desconectarse el microcontrolador
-        for (let [id, clientWs] of dispositivosConectados.entries()) {
-            if (clientWs === ws) {
-                dispositivosConectados.delete(id);
-                console.log(`[WS] Dispositivo desconectado: ID -> ${id}`);
-                break;
-            }
-        }
-    });
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[SERVER] Corriendo en puerto ${PORT}`);
 });
