@@ -68,7 +68,7 @@
       }).catch(err => console.error(err));
 
     // Escucha en Vivo (Reemplazar con tus llaves reales de Pusher)
-    const pusher = new Pusher('TU_PUSHER_KEY', { cluster: 'TU_PUSHER_CLUSTER' });
+    const pusher = new Pusher('76d1c54f58cec3e446e2', { cluster: 'sa1' });
     const channel = pusher.subscribe('canal-monitoreo');
     channel.bind('nuevo-evento', function(data) {
       agregarEventoAlPanel(data);
