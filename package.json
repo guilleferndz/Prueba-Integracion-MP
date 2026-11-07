@@ -11,9 +11,8 @@
     "esp32",
     "node",
     "mercadopago",
-    "websocket",
-    "webhook",
-    "qr-code"
+    "pusher",
+    "webhook"
   ],
   "author": "Guillermo Luis Fernandez",
   "license": "ISC",
@@ -22,7 +21,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mercadopago": "^2.0.11",
-    "ws": "^8.18.0"
+    "pusher": "^5.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
