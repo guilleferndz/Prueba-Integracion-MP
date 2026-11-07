@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monitoreo PuntoEléctrico.ar</title>
   
-  <!-- 1. Tailwind CSS Oficial para producción rápida -->
+  <!-- 1. Tailwind CSS Oficial -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 2. Pusher JS Oficial (Corregido y Limpio de códigos mezclados) -->
-  <script src="https://pusher.com"></script>
+  <!-- 2. CDN Oficial de Pusher para producción (CORREGIDO) -->
+  <script src="https://cloudflare.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
@@ -71,7 +71,7 @@
         eventos.forEach(ev => agregarEventoAlPanel(ev));
       }).catch(err => console.error(err));
 
-    // Escucha en Vivo con Parámetros de Producción Forzados
+    // Escucha en Vivo
     const pusher = new Pusher('76d1c54f58cec3e446e2', { 
       cluster: 'sa1',
       forceTLS: true 
