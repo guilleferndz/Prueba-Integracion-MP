@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Monitoreo PuntoEléctrico.ar</title>
-  <!-- Tailwind CSS para diseño rápido -->
   <script src="https://tailwindcss.com"></script>
-  <!-- Pusher JS -->
   <script src="https://pusher.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
@@ -18,7 +16,6 @@
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Sección Izquierda: Estado de Dispositivos -->
       <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
         <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
         <div class="p-3 bg-gray-700 rounded mb-2 flex justify-between items-center">
@@ -30,11 +27,9 @@
         </div>
       </div>
 
-      <!-- Sección Central/Derecha: Flujo de Eventos en tiempo real -->
       <div class="lg:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
-        <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real (Websockets)</h2>
+        <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real</h2>
         <div id="logs" class="space-y-2 h-[450px] overflow-y-auto pr-2">
-          <!-- Los eventos de Pusher se inyectarán acá -->
           <p class="text-gray-500 text-sm italic">Esperando interacciones del ESP32 o Mercado Pago...</p>
         </div>
       </div>
@@ -44,9 +39,7 @@
   <script>
     const logsContainer = document.getElementById('logs');
 
-    // Función para pintar un evento en pantalla
     function agregarEventoAlPanel(data) {
-      // Eliminar el mensaje de "esperando" la primera vez
       if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
 
       let colorOrigen = "bg-blue-600";
@@ -55,7 +48,7 @@
       if(data.origen.includes("ERROR")) colorOrigen = "bg-red-600";
 
       const item = document.createElement('div');
-      item.className = "p-3 bg-gray-750 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2 transition-all duration-300 animate-fadeIn";
+      item.className = "p-3 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2";
       item.innerHTML = `
         <div class="flex items-center gap-3">
           <span class="text-xs text-gray-400 font-mono">[${data.timestamp}]</span>
@@ -66,19 +59,16 @@
       logsContainer.insertBefore(item, logsContainer.firstChild);
     }
 
-    // 1. Cargar historial inicial mediante HTTP al abrir la página
+    // Historial Inicial
     fetch('/api/historial')
       .then(res => res.json())
       .then(eventos => {
-        if(eventos.length > 0) logsContainer.innerHTML = "";
+        if(eventos && eventos.length > 0) logsContainer.innerHTML = "";
         eventos.forEach(ev => agregarEventoAlPanel(ev));
-      });
+      }).catch(err => console.error(err));
 
-    // 2. Escuchar eventos en vivo mediante Pusher
-    const pusher = new Pusher('TU_PUSHER_KEY', {
-      cluster: 'TU_PUSHER_CLUSTER'
-    });
-
+    // Escucha en Vivo (Reemplazar con tus llaves reales de Pusher)
+    const pusher = new Pusher('TU_PUSHER_KEY', { cluster: 'TU_PUSHER_CLUSTER' });
     const channel = pusher.subscribe('canal-monitoreo');
     channel.bind('nuevo-evento', function(data) {
       agregarEventoAlPanel(data);
