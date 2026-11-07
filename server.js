@@ -31,13 +31,15 @@ function registrarYNotificarEvento(origen, mensaje) {
     const nuevoEvento = {
         timestamp: new Date().toLocaleTimeString('es-AR'),
         origen: origen,
-        mensaje: mensaje
+        mensaje: mensaje,
+        message: mensaje
     };
     historialEventos.unshift(nuevoEvento);
     if (historialEventos.length > 50) historialEventos.pop();
 
     pusher.trigger('canal-monitoreo', 'nuevo-evento', nuevoEvento)
-        .catch(err => console.error('[PUSHER] Error:', err));
+        .then(() => console.log(`[PUSHER SUCCESS] Evento enviado en vivo desde: ${origen}`))
+        .catch(err => console.error('[PUSHER ERROR] No se pudo enviar el evento en vivo:', err));
 }
 
 app.get('/api/historial', (req, res) => {
