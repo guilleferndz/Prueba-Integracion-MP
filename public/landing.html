@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Punto Eléctrico | Soluciones Eléctricas e IoT</title>
-  <!-- Tailwind CSS Oficial -->
-  <script src="https://tailwindcss.com"></script>
+  
+  <!-- 1. Tailwind CSS Oficial (CORREGIDO: Ahora apunta al script ejecutable) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-black text-white font-sans min-h-screen flex flex-col justify-between">
+<body class="bg-black text-white font-sans min-h-screen flex flex-col justify-between relative overflow-x-hidden">
 
   <!-- Elemento decorativo de fondo: Resplandor sutil amarillo -->
-  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[300px] bg-gradient-to-b from-yellow-400/5 to-transparent blur-3xl pointer-events-none"></div>
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[300px] bg-gradient-to-b from-yellow-400/5 to-transparent blur-3xl pointer-events-none z-0"></div>
 
   <!-- Contenedor Principal -->
   <main class="relative z-10 flex-grow flex flex-col items-center justify-center px-4 py-12 max-w-4xl mx-auto text-center">
@@ -35,17 +36,17 @@
 
     <!-- Descripción Breve del Negocio y Soluciones -->
     <div class="space-y-4 max-w-2xl mx-auto mb-12">
-      <p class="text-gray-300 text-base md:text-lg leading-relaxed">
+      <p class="text-zinc-300 text-base md:text-lg leading-relaxed">
         Próximamente nos dedicaremos de manera integral a la <strong class="text-white font-semibold">venta de materiales eléctricos domiciliarios e industriales</strong>, brindando respuestas inmediatas y asesoramiento técnico especializado para la solución de problemas eléctricos.
       </p>
-      <p class="text-gray-400 text-sm md:text-base leading-relaxed">
+      <p class="text-zinc-400 text-sm md:text-base leading-relaxed">
         Impulsamos el futuro de la eficiencia mediante el diseño y desarrollo de sistemas de <strong class="text-yellow-400 font-medium">automatización industrial, domótica avanzada de vanguardia e integración de ecosistemas IoT</strong> a medida.
       </p>
     </div>
 
     <!-- Bloque de Redirección para Integración de Dispositivos -->
     <div class="w-full max-w-md bg-zinc-900/60 p-6 rounded-xl border border-zinc-800 backdrop-blur-sm shadow-xl">
-      <p class="text-gray-400 text-sm mb-4 tracking-wide font-medium uppercase">
+      <p class="text-zinc-400 text-sm mb-4 tracking-wide font-medium uppercase">
         Para integrar tus dispositivos dirigirse a:
       </p>
       <a href="/paneldecontrol" 
