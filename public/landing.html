@@ -16,12 +16,21 @@
   <!-- Contenedor Principal -->
   <main class="relative z-10 flex-grow flex flex-col items-center justify-center px-4 py-12 max-w-4xl mx-auto text-center">
     
-    <!-- Sección del Logo Oficial -->
-    <div class="mb-8 transform hover:scale-105 transition duration-300 bg-[#010100] p-4 rounded-full shadow-[0_0_30px_#010100]">
+        <!-- Sección del Logo Oficial con Resplandor Interno Integrado -->
+    <div class="mb-8 transform hover:scale-105 transition duration-300 relative inline-block group">
+      
+      <!-- Capa de brillo integrada detrás/borde de la silueta -->
+      <img src="/paneldecontrol/logo.png" 
+           alt="" 
+           class="absolute inset-0 h-48 md:h-56 w-auto object-contain brightness-150 blur-md opacity-60 mix-blend-screen pointer-events-none">
+      
+      <!-- Logo Principal nítido al frente -->
       <img src="/paneldecontrol/logo.png" 
            alt="Logo Punto Eléctrico" 
-           class="h-48 md:h-56 w-auto object-contain drop-shadow-[0_0_20px_rgba(250,204,21,0.15)]">
+           class="relative h-48 md:h-56 w-auto object-contain z-10">
+           
     </div>
+
 
     <!-- Etiqueta de Estado en Desarrollo -->
     <span class="inline-flex items-center gap-2 px-3 py-1 border border-yellow-400/30 bg-yellow-400/10 text-yellow-400 text-xs font-semibold tracking-wider uppercase rounded-full mb-6">
