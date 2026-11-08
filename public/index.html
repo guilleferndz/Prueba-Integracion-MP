@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> Punto Eléctrico</title>
+  <title>Punto Eléctrico</title>
   
   <!-- 1. Tailwind CSS Oficial -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 2. Script Oficial del Cliente JavaScript de Pusher (CORREGIDO DEFINITIVO) -->
-  < <script src="https://pusher.com"></script>
+  <!-- 2. Script Oficial del Cliente JavaScript de Pusher (CORREGIDO Y Groundeado) -->
+  <script src="https://pusher.com"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
@@ -63,8 +63,8 @@
       logsContainer.insertBefore(item, logsContainer.firstChild);
     }
 
-    // Historial Inicial
-    fetch('/api/historial')
+    // Historial Inicial (CORREGIDO: Apuntando a la nueva subruta del Backend)
+    fetch('/paneldecontrol/api/historial')
       .then(res => res.json())
       .then(eventos => {
         if(eventos && eventos.length > 0) logsContainer.innerHTML = "";
