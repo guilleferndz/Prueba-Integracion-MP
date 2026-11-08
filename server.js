@@ -10,21 +10,22 @@ app.use(cors());
 app.use(express.json());
 
 // ==========================================
-// CONFIGURACIÓN DE RUTAS DE FRONTEND (Mover a /paneldecontrol)
+// CONFIGURACIÓN DE RUTAS DE FRONTEND
 // ==========================================
 
 // 1. Servir los archivos estáticos de la carpeta 'public' BAJO el prefijo '/paneldecontrol'
 app.use('/paneldecontrol', express.static(path.join(__dirname, 'public')));
 
-// 2. Servir el index.html principal cuando entren exactamente a la subruta
+// 2. Servir el index.html (Dashboard) cuando entren a la subruta
 app.get('/paneldecontrol', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Opcional: Redireccionar la raíz '/' al panel por si entrás sin la subruta
+// 3. NUEVO: Servir la página principal (Landing con botón) en la raíz sin redirección
 app.get('/', (req, res) => {
-    res.redirect('/paneldecontrol');
+    res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
+
 
 // ==========================================
 // CONFIGURACIÓN DE MERCADO PAGO
