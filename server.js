@@ -8,15 +8,35 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. CONFIGURACIÓN DE MERCADO PAGO
+// ==========================================
+// CONFIGURACIÓN DE RUTAS DE FRONTEND (Mover a /paneldecontrol)
+// ==========================================
+
+// 1. Servir los archivos estáticos de la carpeta 'public' BAJO el prefijo '/paneldecontrol'
+app.use('/paneldecontrol', express.static(path.join(__dirname, 'public')));
+
+// 2. Servir el index.html principal cuando entren exactamente a la subruta
+app.get('/paneldecontrol', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Opcional: Redireccionar la raíz '/' al panel por si entrás sin la subruta
+app.get('/', (req, res) => {
+    res.redirect('/paneldecontrol');
+});
+
+// ==========================================
+// CONFIGURACIÓN DE MERCADO PAGO
+// ==========================================
 const client = new MercadoPagoConfig({ 
     accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN
 });
 const payment = new Payment(client);
 
-// 2. CONFIGURACIÓN DE PUSHER
+// ==========================================
+// CONFIGURACIÓN DE PUSHER
+// ==========================================
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -42,12 +62,16 @@ function registrarYNotificarEvento(origen, mensaje) {
         .catch(err => console.error('[PUSHER ERROR] No se pudo enviar el evento en vivo:', err));
 }
 
-app.get('/api/historial', (req, res) => {
+// ==========================================
+// RUTAS DE LA API RECONFIGURADAS A /paneldecontrol
+// ==========================================
+
+app.get('/paneldecontrol/api/historial', (req, res) => {
     res.json(historialEventos);
 });
 
 // Generación Real de QR / Preferencia de Mercado Pago
-app.post('/api/crear-qr', async (req, res) => {
+app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
     const { deviceId, monto } = req.body;
     console.log(`[HTTP] Solicitud de QR: ${deviceId} por $${monto}`);
     registrarYNotificarEvento(deviceId || "CYD_ESP32", `Solicitó QR de cobro por $${monto}`);
@@ -62,12 +86,12 @@ app.post('/api/crear-qr', async (req, res) => {
                     unit_price: Number(monto),
                     currency_id: 'ARS'
                 }],
+                // Importante: El webhook se mantiene en el dominio raíz limpio para evitar inconvenientes con MP
                 notification_url: `https://puntoelectrico.ar`,
                 external_reference: deviceId
             }
         });
 
-        // Retornamos el init_point para que pueda ser mapeado a QR
         res.json({
             success: true,
             qr_data: response.init_point 
@@ -79,7 +103,9 @@ app.post('/api/crear-qr', async (req, res) => {
     }
 });
 
-// Recibir Webhook Real de Mercado Pago
+// ==========================================
+// RUTA DEL WEBHOOK (Mantenida en la raíz)
+// ==========================================
 app.post('/api/webhook', async (req, res) => {
     res.sendStatus(200); // Responder rápido a MP
     const { type, data } = req.body;
@@ -93,7 +119,6 @@ app.post('/api/webhook', async (req, res) => {
             registrarYNotificarEvento("MP_WEBHOOK", `Pago ID ${data.id} - Estado: ${estado}`);
 
             if (estado === 'approved') {
-                // Notificamos en el canal de Pusher correspondiente a ese dispositivo físico
                 pusher.trigger(`device-${deviceIdDestino}`, 'pago-aprobado', {
                     status: 'approved',
                     amount: pagoInfo.transaction_amount
