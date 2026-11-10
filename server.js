@@ -32,7 +32,7 @@ async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: "No autorizado" });
     
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1]; // Corrección para obtener el JWT limpio
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) return res.status(401).json({ error: "Sesión inválida" });
@@ -53,10 +53,9 @@ function emitirLog(origen, mensaje) {
 // ENDPOINT: GENERACIÓN DINÁMICA DE QR (ORIGEN: ESP32)
 // ==========================================
 app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
-    const { deviceId } = req.body; // Ej: mtml-26oc-0001
+    const { deviceId } = req.body; 
     
     try {
-        // 1. Buscar dispositivo y su configuración en DB
         const { data: device, error: devErr } = await supabase
             .from('dispositivos')
             .select('*, usuarios(*)')
@@ -76,9 +75,6 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
 
         emitirLog(deviceId, `Solicitó QR para Dispenser. Monto: $${device.monto}`);
 
-        // 2. Crear el QR en Mercado Pago usando el Access Token del USUARIO DUEÑO
-        // Nota: Usamos fetch directo a la API de MP v1 porque la librería oficial 'mercadopago' SDK v2 
-        // asume una configuración global única en el constructor, bloqueando el comportamiento multi-tenant.
         const mpResponse = await fetch('https://api.mercadopago.com/v1/orders', {
             method: 'POST',
             headers: {
@@ -89,7 +85,7 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
                 external_reference: deviceId,
                 title: `Vending Dispenser ${deviceId}`,
                 description: `Servicio de Vending mtml por tiempo: ${device.tiempo}s`,
-                notification_url: `https://puntoelectrico.ar`, // Endpoint raíz limpio
+                notification_url: `https://puntoelectrico.ar`, 
                 total_amount: Number(device.monto),
                 items: [{
                     title: `Expendedora ${deviceId}`,
@@ -100,12 +96,11 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
         });
 
         const mpData = await mpResponse.json();
-        
         if (!mpResponse.ok) throw new Error(mpData.message || "Error al crear preferencia en MP");
 
         res.json({
             success: true,
-            qr_data: mpData.init_point // URL o string de datos del QR listo para el ESP32
+            qr_data: mpData.init_point 
         });
 
     } catch (error) {
@@ -119,13 +114,11 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
 // RUTA DEL WEBHOOK DE MERCADO PAGO (Raíz)
 // ==========================================
 app.post('/api/webhook', async (req, res) => {
-    res.sendStatus(200); // Responder rápido a Mercado Pago
+    res.sendStatus(200); 
     const { type, data } = req.body;
 
     if (type === 'payment' && data?.id) {
         try {
-            // Buscamos temporalmente el pago con privilegios del sistema para identificar el external_reference.
-            // Para un entorno estricto multi-tenant de producción, se recomienda inspeccionar el ID de recurso o usar el token guardado.
             const paymentResponse = await fetch(`https://mercadopago.com{data.id}`, {
                 headers: { 'Authorization': `Bearer ${process.env.MERCADO_PAGO_MASTER_TOKEN || process.env.MERCADO_PAGO_ACCESS_TOKEN}` }
             });
@@ -138,11 +131,9 @@ app.post('/api/webhook', async (req, res) => {
                 emitirLog("MP_WEBHOOK", `Pago ID ${data.id} - Dispenser: ${deviceIdDestino} - Estado: ${estado}`);
 
                 if (estado === 'approved') {
-                    // Consultar los segundos asignados a este dispositivo
                     const { data: dev } = await supabase.from('dispositivos').select('tiempo').eq('device_id', deviceIdDestino).single();
                     const tiempoActivacion = dev?.tiempo || 5;
 
-                    // Alerta directa por WebSockets al canal privado del ESP32 físico
                     pusher.trigger(`device-${deviceIdDestino}`, 'pago-aprobado', {
                         status: 'approved',
                         amount: pagoInfo.transaction_amount,
@@ -161,12 +152,11 @@ app.post('/api/webhook', async (req, res) => {
 // FLUJO OAUTH: RECEPCIÓN DEL CALLBACK DE MERCADO PAGO
 // ==========================================
 app.get('/api/auth/callback', async (req, res) => {
-    const { code, state } = req.query; // 'state' contendrá el UUID del usuario de nuestra plataforma
+    const { code, state } = req.query; 
     
     if (!code || !state) return res.status(400).send("Faltan parámetros OAuth obligatorios.");
 
     try {
-        // Intercambiar el Code temporal por el Access Token de producción definitivo del cliente
         const response = await fetch('https://mercadopago.com', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -180,20 +170,18 @@ app.get('/api/auth/callback', async (req, res) => {
         });
 
         const tokenData = await response.json();
+        if (tokenData.error) throw new Error(tokenData.message || "Error en el intercambio de tokens");
 
-        if (tokenData.error) throw new Error(tokenData.message || "Error en el intercambio de tokens con MP");
-
-        // Almacenar las credenciales obtenidas de forma segura en el registro del usuario correspondiente
         await supabase
             .from('usuarios')
             .upsert({
                 id: state,
+                email: tokenData.user_info?.email || 'oauth_user@puntoelectrico.ar', // Valor preventivo para la restricción NOT NULL
                 mp_access_token: tokenData.access_token,
                 mp_refresh_token: tokenData.refresh_token,
-                mp_user_id: tokenData.user_id
+                mp_user_id: String(tokenData.user_id)
             });
 
-        // Redirigir de regreso al Panel de Control con bandera de éxito
         res.redirect('/paneldecontrol?mp_connected=true');
 
     } catch (error) {
@@ -237,8 +225,13 @@ app.post('/paneldecontrol/api/configurar-parametros', requireAuth, async (req, r
         .update({ monto: Number(monto), tiempo: Number(tiempo) })
         .eq('device_id', deviceId)
         .eq('usuario_id', req.user.id);
+
     if (error) return res.status(400).json({ error: "Error al actualizar parámetros" });
     res.json({ success: true });
 });
-    const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => console.log([SERVER] Multi-tenant operativo en puerto ${PORT}));
+
+// ==========================================
+// INICIALIZACIÓN DEL SERVIDOR
+// ==========================================
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => console.log(`[SERVER] Multi-tenant operativo en puerto ${PORT}`));
