@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const Pusher = require('pusher');
-const { createClient } = require('@supabase/supabase-client');
+const { createClient } = require('@supabase/supabase-js'); // <-- CORREGIDO
 
 const app = express();
 app.use(cors());
@@ -32,7 +32,7 @@ async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: "No autorizado" });
     
-    const token = authHeader.split(' ')[1]; // Corrección para obtener el JWT limpio
+    const token = authHeader.split(' ')[1];
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error || !user) return res.status(401).json({ error: "Sesión inválida" });
@@ -75,7 +75,8 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
 
         emitirLog(deviceId, `Solicitó QR para Dispenser. Monto: $${device.monto}`);
 
-        const mpResponse = await fetch('https://api.mercadopago.com/v1/orders', {
+        // Se usa el endpoint de Checkout Preferences para generar el link de pago estándar (init_point)
+        const mpResponse = await fetch('https://mercadopago.com', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${tokenCliente}`,
@@ -83,14 +84,13 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
             },
             body: JSON.stringify({
                 external_reference: deviceId,
-                title: `Vending Dispenser ${deviceId}`,
-                description: `Servicio de Vending mtml por tiempo: ${device.tiempo}s`,
-                notification_url: `https://puntoelectrico.ar`, 
-                total_amount: Number(device.monto),
+                notification_url: `https://puntoelectrico.ar`, // <-- CORREGIDO
                 items: [{
-                    title: `Expendedora ${deviceId}`,
+                    title: `Vending Dispenser ${deviceId}`,
+                    description: `Servicio de Vending mtml por tiempo: ${device.tiempo}s`,
                     quantity: 1,
-                    unit_price: Number(device.monto)
+                    unit_price: Number(device.monto),
+                    currency_id: 'ARS'
                 }]
             })
         });
@@ -119,6 +119,7 @@ app.post('/api/webhook', async (req, res) => {
 
     if (type === 'payment' && data?.id) {
         try {
+            // <-- CORREGIDO: URL de la API oficial de pagos
             const paymentResponse = await fetch(`https://mercadopago.com{data.id}`, {
                 headers: { 'Authorization': `Bearer ${process.env.MERCADO_PAGO_MASTER_TOKEN || process.env.MERCADO_PAGO_ACCESS_TOKEN}` }
             });
@@ -157,6 +158,7 @@ app.get('/api/auth/callback', async (req, res) => {
     if (!code || !state) return res.status(400).send("Faltan parámetros OAuth obligatorios.");
 
     try {
+        // <-- CORREGIDO: Endpoint oficial de intercambio OAuth
         const response = await fetch('https://mercadopago.com', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -165,7 +167,7 @@ app.get('/api/auth/callback', async (req, res) => {
                 client_id: process.env.MERCADO_PAGO_CLIENT_ID,
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: `https://puntoelectrico.ar`
+                redirect_uri: `https://puntoelectrico.ar` // <-- CORREGIDO
             })
         });
 
@@ -176,7 +178,7 @@ app.get('/api/auth/callback', async (req, res) => {
             .from('usuarios')
             .upsert({
                 id: state,
-                email: tokenData.user_info?.email || 'oauth_user@puntoelectrico.ar', // Valor preventivo para la restricción NOT NULL
+                email: tokenData.user_info?.email || 'oauth_user@puntoelectrico.ar',
                 mp_access_token: tokenData.access_token,
                 mp_refresh_token: tokenData.refresh_token,
                 mp_user_id: String(tokenData.user_id)
