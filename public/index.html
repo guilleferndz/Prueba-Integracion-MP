@@ -3,76 +3,94 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mtml | Panel de Control</title>
+  <title>Punto Eléctrico | Dashboard</title>
+  
+  <!-- 1. Tailwind CSS Oficial -->
   <script src="https://tailwindcss.com"></script>
+  
+  <!-- 2. Script Oficial de Pusher -->
   <script src="https://pusher.com"></script>
-  <!-- SDK de Supabase desde CDN -->
+
+  <!-- 3. SDK Oficial de Supabase -->
   <script src="https://jsdelivr.net"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
-  <!-- PANTALLA DE LOGIN (Visible si no hay sesión) -->
+  <!-- ========================================================= -->
+  <!-- PANTALLA DE LOGIN (Estética oscura fiel al panel original) -->
+  <!-- ========================================================= -->
   <div id="login-screen" class="hidden min-h-screen flex flex-col justify-center items-center p-6">
-    <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-xl max-w-md w-full text-center">
-      <h1 class="text-3xl font-extrabold text-yellow-400 mb-2">⚡ Punto Eléctrico</h1>
-      <p class="text-gray-400 text-sm mb-6">Sistemas de Vending para Dispensers Automáticos</p>
-      <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-bold py-3 px-4 rounded-lg hover:bg-gray-100 transition shadow-md">
+    <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-2xl max-w-md w-full text-center">
+      <div class="mb-4 flex justify-center">
+        <span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900 animate-pulse">SISTEMA EN LÍNEA</span>
+      </div>
+      <h1 class="text-2xl font-bold text-yellow-400 mb-1">⚡puntoelectrico.ar</h1>
+      <p class="text-sm text-gray-400 mb-6">Dashboard de Gestión Vending • mtml</p>
+      
+      <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-white text-gray-900 font-bold py-3 px-4 rounded-lg transition shadow-md">
         <img src="https://flaticon.com" class="w-5 h-5" alt="Google">
         Ingresar con Google
       </button>
     </div>
   </div>
 
-  <!-- PANEL DE ADMISTRACIÓN PRINCIPAL (Visible Autenticado) -->
-  <div id="dashboard-screen" class="hidden container mx-auto p-4 md:p-6">
-    <header class="flex flex-col sm:flex-row justify-between items-center border-b border-gray-700 pb-4 mb-6 gap-4">
+  <!-- ========================================================= -->
+  <!-- PANEL PRINCIPAL (Diseño idéntico a tu primer index.html)  -->
+  <!-- ========================================================= -->
+  <div id="dashboard-screen" class="hidden container mx-auto p-6">
+    
+    <!-- ENCABEZADO ORIGINAL -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-6 gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-yellow-400">⚡ mtml <span class="text-sm font-normal text-gray-400">| Vending Manager</span></h1>
-        <p id="user-email" class="text-xs text-gray-400 font-mono mt-0.5"></p>
+        <h1 class="text-2xl font-bold text-yellow-400">⚡puntoelectrico.ar <span class="text-sm font-normal text-gray-400">| Dashboard</span></h1>
+        <p id="user-email" class="text-xs text-gray-400 font-mono mt-1"></p>
       </div>
       <div class="flex items-center gap-3">
-        <button id="btn-logout" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs rounded text-gray-300 transition">Cerrar Sesión</button>
+        <span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900 animate-pulse">SERVIDOR EN VIVO</span>
+        <button id="btn-logout" class="px-3 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-600 text-xs font-semibold rounded-full text-gray-300 transition">Salir</button>
       </div>
     </header>
 
-    <!-- ESTADO DE INTEGRACIONES -->
+    <!-- BARRA DE ESTADO MERCADO PAGO -->
     <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div>
-        <h3 class="font-bold text-gray-200">Vinculación de pasarela de pagos</h3>
-        <p class="text-xs text-gray-400">Tus clientes pagarán directo a tu cuenta de Mercado Pago.</p>
+      <div class="flex items-center gap-3">
+        <span class="h-3 w-3 bg-blue-500 rounded-full"></span>
+        <div>
+          <h3 class="font-semibold text-sm text-gray-200">Cuenta de Cobros (Mercado Pago OAuth)</h3>
+          <p class="text-xs text-gray-400">Los pagos escaneados en tus dispensers se acreditan directo en tu cuenta.</p>
+        </div>
       </div>
       <div id="mp-status-container">
-        <!-- Dinámico via JS -->
+        <!-- Se llena dinámicamente -->
       </div>
     </div>
 
+    <!-- GRILLA PRINCIPAL DE 3 COLUMNAS (Igual al original) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- COLUMNA IZQUIERDA: GESTIÓN DE DISPENSERS -->
-      <div class="space-y-6">
-        <!-- REGISTRAR APARATO -->
-        <div class="bg-gray-800 p-5 rounded-lg border border-gray-700">
-          <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-3">Vincular Nuevo Dispenser</h2>
-          <div class="flex gap-2">
-            <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
-            <button id="btn-add-device" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-4 py-2 rounded text-sm transition">Vincular</button>
+      <!-- COLUMNA 1: TERMINALES REGISTRADAS Y VINCULACIÓN -->
+      <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col justify-between">
+        <div>
+          <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
+          
+          <!-- Formulario compacto para sumar nuevo ESP32 -->
+          <div class="flex gap-2 mb-4 pb-4 border-b border-gray-700">
+            <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
+            <button id="btn-add-device" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition shrink-0">+ Vincular</button>
           </div>
-        </div>
 
-        <!-- LISTADO Y CONFIGURADOR -->
-        <div class="bg-gray-800 p-5 rounded-lg border border-gray-700">
-          <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Mis Equipos Instalados</h2>
-          <div id="devices-container" class="space-y-4">
-            <!-- Cargados Dinámicamente -->
+          <!-- Lista de dispensers con estilo de tarjetas bg-gray-700 -->
+          <div id="devices-container" class="space-y-3">
+            <!-- Tarjetas generadas por JS -->
           </div>
         </div>
       </div>
 
-      <!-- COLUMNA DERECHA: FLUJO EN VIVO MUNDIAL -->
-      <div class="lg:col-span-2 bg-gray-800 p-5 rounded-lg border border-gray-700">
-        <h2 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Monitor Operativo en Tiempo Real</h2>
-        <div id="logs" class="space-y-2 h-[480px] overflow-y-auto pr-2 font-mono text-xs">
-          <p class="text-gray-500 italic">Esperando interacciones de red de tus terminales o pasarela...</p>
+      <!-- COLUMNA 2 y 3: FLUJO DE EVENTOS EN TIEMPO REAL -->
+      <div class="lg:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
+        <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real</h2>
+        <div id="logs" class="space-y-2 h-[480px] overflow-y-auto pr-2">
+          <p class="text-gray-500 text-sm italic">Esperando interacciones del ESP32 o Mercado Pago...</p>
         </div>
       </div>
 
@@ -80,8 +98,14 @@
   </div>
 
   <script>
-    // Inicializar cliente Supabase local
-    const _supabase = supabase.createClient('https://jgcjouqxopayronpayvs.supabase.co/rest/v1/', 'sb_publishable_lDbFZ8TE2dcWawH3MeK9Mw_kSD8IeaU');
+    // ==========================================
+    // CONFIGURACIÓN DE CREDENCIALES (COMPLETAR)
+    // ==========================================
+    const SUPABASE_URL = 'https://jgcjouqxopayronpayvs.supabase.co/rest/v1/';
+    const SUPABASE_KEY = 'sb_publishable_lDbFZ8TE2dcWawH3MeK9Mw_kSD8IeaU';
+    const MP_CLIENT_ID = '6990610008925907';
+
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     const loginScreen = document.getElementById('login-screen');
     const dashboardScreen = document.getElementById('dashboard-screen');
@@ -89,12 +113,14 @@
     let sessionJWT = null;
     let currentUserId = null;
 
-    // CONTROL DE FLUJO DE SESIÓN
+    // ==========================================
+    // CONTROL DE SESIÓN GOOGLE
+    // ==========================================
     _supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         sessionJWT = session.access_token;
         currentUserId = session.user.id;
-        document.getElementById('user-email').innerText = session.user.email;
+        document.getElementById('user-email').innerText = `Operador: ${session.user.email}`;
         loginScreen.classList.add('hidden');
         dashboardScreen.classList.remove('hidden');
         inicializarDashboard();
@@ -105,90 +131,134 @@
     });
 
     document.getElementById('btn-google-login').onclick = () => {
-      _supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+      _supabase.auth.signInWithOAuth({ 
+        provider: 'google', 
+        options: { redirectTo: window.location.origin + '/paneldecontrol' } 
+      });
     };
 
     document.getElementById('btn-logout').onclick = () => _supabase.auth.signOut();
 
-    // INTERFAZ Y ACCIONES DEL PANEL
+    // ==========================================
+    // CARGA DE DATOS Y RENDERIZADO DE TARJETAS
+    // ==========================================
     async function inicializarDashboard() {
-      const res = await fetch('/paneldecontrol/api/mis-datos', { headers: { 'Authorization': `Bearer ${sessionJWT}` } });
-      const datos = await res.json();
-      
-      // Renderizar estado Mercado Pago
-      const mpContainer = document.getElementById('mp-status-container');
-      if(datos.mp_vinculado) {
-        mpContainer.innerHTML = `<span class="px-3 py-1.5 bg-green-500/20 text-green-400 font-bold text-xs rounded border border-green-500/30">✓ MERCADO PAGO CONECTADO</span>`;
-      } else {
-        // Tu CLIENT_ID de la aplicación de Mercado Pago Developers
-        const mpClientId = "TU_MERCADO_PAGO_CLIENT_ID"; 
-        const oauthUrl = `https://mercadopago.com{mpClientId}&response_type=code&platform_id=mp&redirect_uri=https://puntoelectrico.ar{currentUserId}`;
-        mpContainer.innerHTML = `<a href="${oauthUrl}" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Conectar Cuenta de Mercado Pago</a>`;
+      try {
+        const res = await fetch('/paneldecontrol/api/mis-datos', { 
+          headers: { 'Authorization': `Bearer ${sessionJWT}` } 
+        });
+        const datos = await res.json();
+        
+        // 1. Estado de Mercado Pago
+        const mpContainer = document.getElementById('mp-status-container');
+        if(datos.mp_vinculado) {
+          mpContainer.innerHTML = `<span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900">✓ CUENTA VINCULADA</span>`;
+        } else {
+          const oauthUrl = `https://mercadopago.com{MP_CLIENT_ID}&response_type=code&platform_id=mp&redirect_uri=https://puntoelectrico.ar{currentUserId}`;
+          mpContainer.innerHTML = `<a href="${oauthUrl}" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>`;
+        }
+
+        // 2. Renderizar Terminales con el estilo bg-gray-700 original
+        const devContainer = document.getElementById('devices-container');
+        if (!datos.dispositivos || datos.dispositivos.length === 0) {
+          devContainer.innerHTML = `<p class="text-gray-500 text-xs italic">Aún no vinculaste ninguna terminal mtml.</p>`;
+          return;
+        }
+
+        devContainer.innerHTML = "";
+        datos.dispositivos.forEach(dev => {
+          const card = document.createElement('div');
+          card.className = "p-3 bg-gray-700 rounded border border-gray-600 space-y-3";
+          card.innerHTML = `
+            <div class="flex justify-between items-center">
+              <div>
+                <p class="font-bold text-sm text-yellow-400 font-mono">${dev.device_id}</p>
+                <p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>
+              </div>
+              <span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal Activa"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-600">
+              <div>
+                <label class="text-[11px] text-gray-300 block">Monto ($ ARS)</label>
+                <input type="number" id="monto-${dev.device_id}" value="${dev.monto}" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">
+              </div>
+              <div>
+                <label class="text-[11px] text-gray-300 block">Tiempo (Seg)</label>
+                <input type="number" id="tiempo-${dev.device_id}" value="${dev.tiempo}" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">
+              </div>
+            </div>
+
+            <button onclick="guardarParametros('${dev.device_id}')" class="w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">
+              Guardar Configuración
+            </button>
+          `;
+          devContainer.appendChild(card);
+        });
+      } catch (err) {
+        console.error("Error cargando datos del panel:", err);
       }
-
-      // Renderizar dispensers vinculados
-      const devContainer = document.getElementById('devices-container');
-      devContainer.innerHTML = datos.dispositivos.length === 0 ? `<p class="text-xs text-gray-500 italic">No tenés dispensers vinculados todavía.</p>` : "";
-      
-      datos.dispositivos.forEach(dev => {
-        const div = document.createElement('div');
-        div.className = "p-4 bg-gray-900 rounded border border-gray-700 space-y-3";
-        div.innerHTML = `
-          <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-            <span class="font-bold text-xs text-yellow-400 font-mono">${dev.device_id}</span>
-            <span class="h-2 w-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="text-[10px] text-gray-400 block font-semibold">MONTO COBRO ($)</label>
-              <input type="number" id="monto-${dev.device_id}" value="${dev.monto}" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 w-full text-white mt-1">
-            </div>
-            <div>
-              <label class="text-[10px] text-gray-400 block font-semibold">TIEMPO PULSO (SEG)</label>
-              <input type="number" id="tiempo-${dev.device_id}" value="${dev.tiempo}" class="bg-gray-800 border border-gray-700 text-xs rounded px-2 py-1 w-full text-white mt-1">
-            </div>
-          </div>
-          <button onclick="guardarParametros('${dev.device_id}')" class="w-full py-1 bg-gray-800 hover:bg-gray-700 text-[11px] rounded font-bold transition border border-gray-700">Guardar Parámetros</button>
-        `;
-        devContainer.appendChild(div);
-      });
     }
 
-    // EVENTO: VINCULAR NUEVO EQUIPO
-    document.getElementById('btn-add-device').onclick = async () => {
-      const idInput = document.getElementById('new-device-id');
-      const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionJWT}` },
-        body: JSON.stringify({ deviceId: idInput.value.trim() })
-      });
-      if(res.ok) { idInput.value = ""; inicializarDashboard(); } else { alert((await res.json()).error); }
-    };
-
-    // EVENTO: ENVIAR PARÁMETROS CONFIGURADOS
-    async function guardarParametros(deviceId) {
-      const monto = document.getElementById(`monto-${deviceId}`).value;
-      const tiempo = document.getElementById(`tiempo-${deviceId}`).value;
-      
-      const res = await fetch('/paneldecontrol/api/configurar-parametros', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionJWT}` },
-        body: JSON.stringify({ deviceId, monto, tiempo })
-      });
-      if(res.ok) alert("Dispenser actualizado exitosamente.");
-    }
-
-    // WEBSOCKET: MONITOR DE EVENTOS EN TIEMPO REAL (PUSHER)
-    function agregarLog(data) {
-      if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
-      let color = "text-blue-400";
-      if(data.origen.includes("MP")) color = "text-emerald-400";
-      if(data.origen.includes("ERROR")) color = "text-red-400 font-bold";
-      if(data.origen.includes("SERVER")) color = "text-purple-400";
-      const p = document.createElement('p');
-        p.className = "mb-1 animate-fadeIn leading-relaxed";
-        p.innerHTML = <span class="text-gray-500">[${data.timestamp}]</span> <span class="${color} font-bold">${data.origen}:</span> <span class="text-gray-300">${data.mensaje}</span>;
-        logsContainer.insertBefore(p, logsContainer.firstChild);
+// ==========================================
+// ACCIONES DE USUARIO
+// ==========================================
+document.getElementById('btn-add-device').onclick = async () => {
+const idInput = document.getElementById('new-device-id');
+const deviceId = idInput.value.trim();
+if(!deviceId) return;
+const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'Authorization': Bearer ${sessionJWT} },
+body: JSON.stringify({ deviceId })
+});
+if(res.ok) {
+idInput.value = "";
+inicializarDashboard();
+} else {
+const errData = await res.json();
+alert(errData.error || "Error al vincular dispositivo");
 }
-      const pusher = new Pusher('76d1c54f58cec3e446e2', { cluster: 'sa1', forceTLS: true });
-        pusher.subscribe('canal-monitoreo').bind('nuevo-evento', data => agregarLog(data));
+};
+async function guardarParametros(deviceId) {
+const monto = document.getElementById(monto-${deviceId}).value;
+const tiempo = document.getElementById(tiempo-${deviceId}).value;
+const res = await fetch('/paneldecontrol/api/configurar-parametros', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', 'Authorization': Bearer ${sessionJWT} },
+body: JSON.stringify({ deviceId, monto, tiempo })
+});
+if(res.ok) {
+agregarEventoAlPanel({
+timestamp: new Date().toLocaleTimeString('es-AR'),
+origen: 'PANEL',
+mensaje: Parámetros actualizados en ${deviceId}: $${monto} / ${tiempo}s
+});
+} else {
+alert("No se pudieron guardar los cambios.");
+}
+}
+// ==========================================
+// MONITOR DE EVENTOS (Diseño exacto al original)
+// ==========================================
+function agregarEventoAlPanel(data) {
+if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
+let colorOrigen = "bg-blue-600";
+if(data.origen.includes("MP")) colorOrigen = "bg-blue-500";
+if(data.origen.includes("CYD") || data.origen.includes("mtml")) colorOrigen = "bg-yellow-500 text-gray-950";
+if(data.origen.includes("SERVER") || data.origen.includes("PANEL")) colorOrigen = "bg-green-600";
+if(data.origen.includes("ERROR")) colorOrigen = "bg-red-600";
+const item = document.createElement('div');
+item.className = "p-3 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2";
+item.innerHTML = <div class="flex items-center gap-3"> <span class="text-xs text-gray-400 font-mono">[${data.timestamp}]</span> <span class="px-2 py-0.5 rounded text-xs font-bold ${colorOrigen}">${data.origen}</span> <span class="text-gray-200">${data.message || data.mensaje}</span> </div>;
+logsContainer.insertBefore(item, logsContainer.firstChild);
+}
+// Escucha en Vivo con Pusher
+const pusher = new Pusher('76d1c54f58cec3e446e2', {
+cluster: 'sa1',
+forceTLS: true
+});
+const channel = pusher.subscribe('canal-monitoreo');
+channel.bind('nuevo-evento', function(data) {
+agregarEventoAlPanel(data);
+});
