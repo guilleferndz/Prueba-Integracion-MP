@@ -6,25 +6,17 @@
   <title>Punto Eléctrico | Dashboard</title>
   <link rel="icon" href="data:,">
 
-  <!-- 1. Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- 2. Pusher -->
   <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-
-  <!-- 3. Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
-  <!-- PANTALLA DE LOGIN -->
+  <!-- LOGIN / REGISTRO -->
   <div id="login-screen" class="min-h-screen flex flex-col justify-center items-center p-6">
-    <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-2xl max-w-md w-full text-center">
-      <div class="mb-4 flex justify-center">
-        <span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900 animate-pulse">SISTEMA EN LÍNEA</span>
-      </div>
-      <h1 class="text-2xl font-bold text-yellow-400 mb-1">⚡puntoelectrico.ar</h1>
-      <p class="text-sm text-gray-400 mb-6">Dashboard de Gestión Vending • mtml</p>
+    <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-2xl max-w-md w-full">
+      <h1 class="text-2xl font-bold text-yellow-400 mb-1 text-center">⚡puntoelectrico.ar</h1>
+      <p class="text-sm text-gray-400 mb-6 text-center">Dashboard de Gestión Vending • mtml</p>
 
       <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-white text-gray-900 font-bold py-3 px-4 rounded-lg transition shadow-md">
         <svg class="w-5 h-5" viewBox="0 0 24 24">
@@ -33,8 +25,24 @@
           <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
           <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
         </svg>
-        Ingresar con Google
+        Continuar con Google
       </button>
+
+      <div class="flex items-center gap-3 my-5">
+        <div class="flex-1 border-t border-gray-700"></div>
+        <span class="text-xs text-gray-500">o con tu email</span>
+        <div class="flex-1 border-t border-gray-700"></div>
+      </div>
+
+      <div class="space-y-3">
+        <input type="email" id="auth-email" placeholder="Email" autocomplete="email" class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm w-full focus:outline-none focus:border-yellow-500">
+        <input type="password" id="auth-password" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="current-password" class="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm w-full focus:outline-none focus:border-yellow-500">
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btn-email-login" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold py-2 rounded text-sm transition">Ingresar</button>
+          <button id="btn-email-signup" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-gray-100 font-bold py-2 rounded text-sm transition">Crear cuenta</button>
+        </div>
+        <p id="auth-msg" class="text-xs text-center min-h-[1rem]"></p>
+      </div>
     </div>
   </div>
 
@@ -52,39 +60,45 @@
       </div>
     </header>
 
-    <!-- BARRA DE ESTADO MERCADO PAGO -->
-    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-3">
-        <span class="h-3 w-3 bg-blue-500 rounded-full"></span>
-        <div>
-          <h3 class="font-semibold text-sm text-gray-200">Cuenta de Cobros (Mercado Pago OAuth)</h3>
-          <p class="text-xs text-gray-400">Los pagos escaneados en tus dispensers se acreditan directo en tu cuenta.</p>
-        </div>
-      </div>
-      <div id="mp-status-container"></div>
-    </div>
+    <div id="banner" class="hidden mb-6 p-3 rounded-lg text-sm"></div>
 
-    <!-- GRILLA PRINCIPAL -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- TERMINALES -->
-      <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col justify-between">
-        <div>
-          <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
+      <!-- COLUMNA IZQUIERDA: PASOS -->
+      <div class="space-y-6">
 
-          <div class="flex gap-2 mb-4 pb-4 border-b border-gray-700">
+        <!-- PASO 1 -->
+        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <h2 class="text-sm font-semibold text-gray-300 mb-1"><span class="text-yellow-400">1.</span> Vincular tu terminal</h2>
+          <p class="text-xs text-gray-400 mb-3">Ingresá el ID del equipo (ej: mtml-26oc-0001) y el código de vinculación de la etiqueta.</p>
+          <div class="space-y-2">
             <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
-            <button id="btn-add-device" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition shrink-0">+ Vincular</button>
+            <input type="text" id="new-device-code" placeholder="Código de vinculación" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono uppercase focus:outline-none focus:border-yellow-500">
+            <button id="btn-add-device" class="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition">+ Vincular terminal</button>
           </div>
+          <div id="devices-list" class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
 
+        <!-- PASO 2 -->
+        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <h2 class="text-sm font-semibold text-gray-300 mb-1"><span class="text-yellow-400">2.</span> Cuenta de cobros (Mercado Pago)</h2>
+          <p class="text-xs text-gray-400 mb-3">Los pagos de tus dispensers se acreditan directo en tu cuenta.</p>
+          <div id="mp-status-container"></div>
+        </div>
+
+        <!-- PASO 3 -->
+        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+          <h2 class="text-sm font-semibold text-gray-300 mb-1"><span class="text-yellow-400">3.</span> Configuración de tus terminales</h2>
+          <p class="text-xs text-gray-400 mb-3">Monto a cobrar por el QR y tiempo que se activa la salida tras el pago.</p>
           <div id="devices-container" class="space-y-3"></div>
         </div>
+
       </div>
 
       <!-- FLUJO DE EVENTOS -->
       <div class="lg:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
         <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real</h2>
-        <div id="logs" class="space-y-2 h-[480px] overflow-y-auto pr-2">
+        <div id="logs" class="space-y-2 h-[640px] overflow-y-auto pr-2">
           <p class="text-gray-500 text-sm italic">Esperando interacciones del ESP32 o Mercado Pago...</p>
         </div>
       </div>
@@ -95,6 +109,8 @@
   <script>
     const SUPABASE_URL = 'https://jgcjouqxopayronpayvs.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_lDbFZ8TE2dcWawH3MeK9Mw_kSD8IeaU';
+    const PUSHER_KEY = '76d1c54f58cec3e446e2';
+    const PUSHER_CLUSTER = 'sa1';
 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -103,17 +119,29 @@
     const logsContainer = document.getElementById('logs');
     let sessionJWT = null;
     let currentUserId = null;
+    let pusherIniciado = false;
 
     // Escapa texto para evitar inyección de HTML (XSS)
     function esc(valor) {
       return String(valor == null ? '' : valor)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    function authMsg(texto, ok) {
+      const el = document.getElementById('auth-msg');
+      el.textContent = texto;
+      el.className = 'text-xs text-center min-h-[1rem] ' + (ok ? 'text-green-400' : 'text-red-400');
+    }
+
+    function mostrarBanner(texto, tipo) {
+      const b = document.getElementById('banner');
+      b.textContent = texto;
+      b.className = 'mb-6 p-3 rounded-lg text-sm ' +
+        (tipo === 'ok' ? 'bg-green-900 text-green-200 border border-green-700' : 'bg-red-900 text-red-200 border border-red-700');
+    }
+
+    // ---------- SESIÓN ----------
     _supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         sessionJWT = session.access_token;
@@ -122,7 +150,9 @@
         loginScreen.classList.add('hidden');
         dashboardScreen.classList.remove('hidden');
         inicializarDashboard();
+        iniciarPusher();
       } else {
+        sessionJWT = null;
         dashboardScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
       }
@@ -135,85 +165,119 @@
       });
     };
 
+    document.getElementById('btn-email-login').onclick = async () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!email || !password) return authMsg('Completá email y contraseña.', false);
+      const { error } = await _supabase.auth.signInWithPassword({ email, password });
+      if (error) authMsg('No se pudo ingresar: ' + error.message, false);
+    };
+
+    document.getElementById('btn-email-signup').onclick = async () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!email || password.length < 6) return authMsg('Ingresá un email y una contraseña de al menos 6 caracteres.', false);
+      const { data, error } = await _supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: window.location.origin + '/paneldecontrol' }
+      });
+      if (error) return authMsg('No se pudo crear la cuenta: ' + error.message, false);
+      if (!data.session) authMsg('Cuenta creada. Revisá tu email para confirmarla y luego ingresá.', true);
+    };
+
     document.getElementById('btn-logout').onclick = () => _supabase.auth.signOut();
 
+    // ---------- DATOS DEL PANEL ----------
     async function inicializarDashboard() {
       try {
         const res = await fetch('/paneldecontrol/api/mis-datos', {
           headers: { 'Authorization': 'Bearer ' + sessionJWT }
         });
         const datos = await res.json();
+        if (!res.ok) throw new Error(datos.error || 'Error al cargar datos');
 
+        const dispositivos = datos.dispositivos || [];
+        const tieneDispositivos = dispositivos.length > 0;
+
+        // Paso 1: lista de equipos vinculados
+        document.getElementById('devices-list').innerHTML = dispositivos.map(d =>
+          '<span class="px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs font-mono text-yellow-400">' + esc(d.device_id) + '</span>'
+        ).join('');
+
+        // Paso 2: Mercado Pago
         const mpContainer = document.getElementById('mp-status-container');
-        if (datos.mp_vinculado) {
+        if (!tieneDispositivos) {
+          mpContainer.innerHTML = '<p class="text-xs text-gray-500 italic">Primero vinculá al menos una terminal (paso 1).</p>';
+        } else if (datos.mp_vinculado) {
           mpContainer.innerHTML = '<span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900">✓ CUENTA VINCULADA</span>';
         } else {
-          mpContainer.innerHTML = '<a href="' + esc(datos.mp_oauth_url) + '" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>';
+          mpContainer.innerHTML = '<a href="' + esc(datos.mp_oauth_url) + '" class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>';
         }
 
+        // Paso 3: parámetros
         const devContainer = document.getElementById('devices-container');
-        if (!datos.dispositivos || datos.dispositivos.length === 0) {
-          devContainer.innerHTML = '<p class="text-gray-500 text-xs italic">Aún no vinculaste ninguna terminal mtml.</p>';
+        if (!tieneDispositivos || !datos.mp_vinculado) {
+          devContainer.innerHTML = '<p class="text-xs text-gray-500 italic">' +
+            (!tieneDispositivos ? 'Vinculá una terminal y tu cuenta de Mercado Pago para configurar.' : 'Vinculá tu cuenta de Mercado Pago (paso 2) para configurar.') + '</p>';
           return;
         }
 
         devContainer.innerHTML = '';
-        datos.dispositivos.forEach(dev => {
-          const id = esc(dev.device_id);
+        dispositivos.forEach(dev => {
           const card = document.createElement('div');
           card.className = 'p-3 bg-gray-700 rounded border border-gray-600 space-y-3';
           card.innerHTML =
             '<div class="flex justify-between items-center">' +
               '<div>' +
-                '<p class="font-bold text-sm text-yellow-400 font-mono">' + id + '</p>' +
+                '<p class="font-bold text-sm text-yellow-400 font-mono">' + esc(dev.device_id) + '</p>' +
                 '<p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>' +
               '</div>' +
-              '<span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal Activa"></span>' +
+              '<span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal vinculada"></span>' +
             '</div>' +
             '<div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-600">' +
               '<div>' +
                 '<label class="text-[11px] text-gray-300 block">Monto ($ ARS)</label>' +
-                '<input type="number" class="input-monto bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.monto) + '">' +
+                '<input type="number" min="1" class="input-monto bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.monto) + '">' +
               '</div>' +
               '<div>' +
                 '<label class="text-[11px] text-gray-300 block">Tiempo (Seg)</label>' +
-                '<input type="number" class="input-tiempo bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.tiempo) + '">' +
+                '<input type="number" min="1" class="input-tiempo bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.tiempo) + '">' +
               '</div>' +
             '</div>' +
-            '<button class="btn-guardar w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">' +
-              'Guardar Configuración' +
-            '</button>';
+            '<button class="btn-guardar w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">Guardar Configuración</button>';
 
           card.querySelector('.btn-guardar').addEventListener('click', () => {
-            const monto = card.querySelector('.input-monto').value;
-            const tiempo = card.querySelector('.input-tiempo').value;
-            guardarParametros(dev.device_id, monto, tiempo);
+            guardarParametros(dev.device_id, card.querySelector('.input-monto').value, card.querySelector('.input-tiempo').value);
           });
-
           devContainer.appendChild(card);
         });
       } catch (err) {
         console.error('Error cargando datos del panel:', err);
+        mostrarBanner('No se pudieron cargar tus datos. Recargá la página.', 'error');
       }
     }
 
     document.getElementById('btn-add-device').onclick = async () => {
       const idInput = document.getElementById('new-device-id');
+      const codeInput = document.getElementById('new-device-code');
       const deviceId = idInput.value.trim();
-      if (!deviceId) return;
+      const codigo = codeInput.value.trim();
+      if (!deviceId || !codigo) return mostrarBanner('Completá el ID y el código de vinculación.', 'error');
 
       const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
-        body: JSON.stringify({ deviceId: deviceId })
+        body: JSON.stringify({ deviceId, codigo })
       });
 
       if (res.ok) {
         idInput.value = '';
+        codeInput.value = '';
+        mostrarBanner('Terminal vinculada correctamente.', 'ok');
         inicializarDashboard();
       } else {
         const errData = await res.json().catch(() => ({}));
-        alert(errData.error || 'Error al vincular dispositivo');
+        mostrarBanner(errData.error || 'Error al vincular dispositivo', 'error');
       }
     };
 
@@ -221,7 +285,7 @@
       const res = await fetch('/paneldecontrol/api/configurar-parametros', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
-        body: JSON.stringify({ deviceId: deviceId, monto: monto, tiempo: tiempo })
+        body: JSON.stringify({ deviceId, monto, tiempo })
       });
 
       if (res.ok) {
@@ -231,17 +295,19 @@
           mensaje: 'Parámetros actualizados en ' + deviceId + ': $' + monto + ' / ' + tiempo + 's'
         });
       } else {
-        alert('No se pudieron guardar los cambios.');
+        const errData = await res.json().catch(() => ({}));
+        mostrarBanner(errData.error || 'No se pudieron guardar los cambios.', 'error');
       }
     }
 
+    // ---------- EVENTOS EN TIEMPO REAL ----------
     function agregarEventoAlPanel(data) {
       if (logsContainer.innerHTML.includes('Esperando interacciones')) logsContainer.innerHTML = '';
 
       const origen = String(data.origen || '');
       let colorOrigen = 'bg-blue-600';
       if (origen.includes('MP')) colorOrigen = 'bg-blue-500';
-      if (origen.includes('CYD') || origen.includes('mtml')) colorOrigen = 'bg-yellow-500 text-gray-950';
+      if (origen.startsWith('mtml')) colorOrigen = 'bg-yellow-500 text-gray-950';
       if (origen.includes('SERVER') || origen.includes('PANEL')) colorOrigen = 'bg-green-600';
       if (origen.includes('ERROR')) colorOrigen = 'bg-red-600';
 
@@ -254,14 +320,26 @@
       logsContainer.insertBefore(item, logsContainer.firstChild);
     }
 
-    const pusher = new Pusher('76d1c54f58cec3e446e2', {
-      cluster: 'sa1',
-      forceTLS: true
-    });
-    const channel = pusher.subscribe('canal-monitoreo');
-    channel.bind('nuevo-evento', function (data) {
-      agregarEventoAlPanel(data);
-    });
+    // Canal PRIVADO: cada usuario ve solo los eventos de sus equipos
+    function iniciarPusher() {
+      if (pusherIniciado) return;
+      pusherIniciado = true;
+      const pusher = new Pusher(PUSHER_KEY, {
+        cluster: PUSHER_CLUSTER,
+        forceTLS: true,
+        channelAuthorization: {
+          endpoint: '/paneldecontrol/api/pusher-auth',
+          headersProvider: () => ({ 'Authorization': 'Bearer ' + sessionJWT })
+        }
+      });
+      const channel = pusher.subscribe('private-user-' + currentUserId);
+      channel.bind('nuevo-evento', agregarEventoAlPanel);
+    }
+
+    // Mensajes al volver de Mercado Pago
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mp_connected')) setTimeout(() => mostrarBanner('Mercado Pago vinculado correctamente.', 'ok'), 300);
+    if (params.get('error')) setTimeout(() => mostrarBanner('No se pudo vincular Mercado Pago. Intentá de nuevo.', 'error'), 300);
   </script>
 </body>
 </html>
