@@ -5,27 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Punto Eléctrico | Dashboard</title>
   <link rel="icon" href="data:,">
-  
+
   <!-- 1. Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- 2. Pusher -->
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+  <!-- 2. Pusher -->
+  <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 
-<!-- 3. Supabase -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <!-- 3. Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
   <!-- PANTALLA DE LOGIN -->
-  <div id="login-screen" class="hidden min-h-screen flex flex-col justify-center items-center p-6">
+  <div id="login-screen" class="min-h-screen flex flex-col justify-center items-center p-6">
     <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-2xl max-w-md w-full text-center">
       <div class="mb-4 flex justify-center">
         <span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900 animate-pulse">SISTEMA EN LÍNEA</span>
       </div>
       <h1 class="text-2xl font-bold text-yellow-400 mb-1">⚡puntoelectrico.ar</h1>
       <p class="text-sm text-gray-400 mb-6">Dashboard de Gestión Vending • mtml</p>
-      
+
       <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-white text-gray-900 font-bold py-3 px-4 rounded-lg transition shadow-md">
         <svg class="w-5 h-5" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
@@ -40,7 +40,7 @@
 
   <!-- PANEL PRINCIPAL -->
   <div id="dashboard-screen" class="hidden container mx-auto p-6">
-    
+
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-6 gap-4">
       <div>
         <h1 class="text-2xl font-bold text-yellow-400">⚡puntoelectrico.ar <span class="text-sm font-normal text-gray-400">| Dashboard</span></h1>
@@ -66,12 +66,12 @@
 
     <!-- GRILLA PRINCIPAL -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
+
       <!-- TERMINALES -->
       <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col justify-between">
         <div>
           <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
-          
+
           <div class="flex gap-2 mb-4 pb-4 border-b border-gray-700">
             <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
             <button id="btn-add-device" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition shrink-0">+ Vincular</button>
@@ -96,14 +96,25 @@
     const SUPABASE_URL = 'https://jgcjouqxopayronpayvs.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_lDbFZ8TE2dcWawH3MeK9Mw_kSD8IeaU';
     const MP_CLIENT_ID = '6990610008925907';
+    const MP_REDIRECT_URI = 'https://puntoelectrico.ar/paneldecontrol/api/mp-callback';
 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
+
     const loginScreen = document.getElementById('login-screen');
     const dashboardScreen = document.getElementById('dashboard-screen');
     const logsContainer = document.getElementById('logs');
     let sessionJWT = null;
     let currentUserId = null;
+
+    // Escapa texto para evitar inyección de HTML (XSS)
+    function esc(valor) {
+      return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     _supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
@@ -120,9 +131,9 @@
     });
 
     document.getElementById('btn-google-login').onclick = () => {
-      _supabase.auth.signInWithOAuth({ 
-        provider: 'google', 
-        options: { redirectTo: window.location.origin + '/paneldecontrol' } 
+      _supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + '/paneldecontrol' }
       });
     };
 
@@ -130,16 +141,19 @@
 
     async function inicializarDashboard() {
       try {
-        const res = await fetch('/paneldecontrol/api/mis-datos', { 
-          headers: { 'Authorization': 'Bearer ' + sessionJWT } 
+        const res = await fetch('/paneldecontrol/api/mis-datos', {
+          headers: { 'Authorization': 'Bearer ' + sessionJWT }
         });
         const datos = await res.json();
-        
+
         const mpContainer = document.getElementById('mp-status-container');
-        if(datos.mp_vinculado) {
+        if (datos.mp_vinculado) {
           mpContainer.innerHTML = '<span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900">✓ CUENTA VINCULADA</span>';
         } else {
-          const oauthUrl = 'https://mercadopago.com' + MP_CLIENT_ID + '&response_type=code&platform_id=mp&redirect_uri=https://puntoelectrico.ar' + currentUserId;
+          const oauthUrl = 'https://auth.mercadopago.com.ar/authorization?client_id=' + MP_CLIENT_ID +
+            '&response_type=code&platform_id=mp' +
+            '&state=' + encodeURIComponent(currentUserId) +
+            '&redirect_uri=' + encodeURIComponent(MP_REDIRECT_URI);
           mpContainer.innerHTML = '<a href="' + oauthUrl + '" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>';
         }
 
@@ -149,14 +163,15 @@
           return;
         }
 
-        devContainer.innerHTML = "";
+        devContainer.innerHTML = '';
         datos.dispositivos.forEach(dev => {
+          const id = esc(dev.device_id);
           const card = document.createElement('div');
-          card.className = "p-3 bg-gray-700 rounded border border-gray-600 space-y-3";
-          card.innerHTML = 
+          card.className = 'p-3 bg-gray-700 rounded border border-gray-600 space-y-3';
+          card.innerHTML =
             '<div class="flex justify-between items-center">' +
               '<div>' +
-                '<p class="font-bold text-sm text-yellow-400 font-mono">' + dev.device_id + '</p>' +
+                '<p class="font-bold text-sm text-yellow-400 font-mono">' + id + '</p>' +
                 '<p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>' +
               '</div>' +
               '<span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal Activa"></span>' +
@@ -164,80 +179,95 @@
             '<div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-600">' +
               '<div>' +
                 '<label class="text-[11px] text-gray-300 block">Monto ($ ARS)</label>' +
-                '<input type="number" id="monto-' + dev.device_id + '" value="' + dev.monto + '" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">' +
+                '<input type="number" class="input-monto bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.monto) + '">' +
               '</div>' +
               '<div>' +
                 '<label class="text-[11px] text-gray-300 block">Tiempo (Seg)</label>' +
-                '<input type="number" id="tiempo-' + dev.device_id + '" value="' + dev.tiempo + '" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">' +
+                '<input type="number" class="input-tiempo bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono" value="' + esc(dev.tiempo) + '">' +
               '</div>' +
             '</div>' +
-            '<button onclick="guardarParametros(\'' + dev.device_id + '\')" class="w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">' +
+            '<button class="btn-guardar w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">' +
               'Guardar Configuración' +
             '</button>';
+
+          card.querySelector('.btn-guardar').addEventListener('click', () => {
+            const monto = card.querySelector('.input-monto').value;
+            const tiempo = card.querySelector('.input-tiempo').value;
+            guardarParametros(dev.device_id, monto, tiempo);
+          });
+
           devContainer.appendChild(card);
         });
       } catch (err) {
-        console.error("Error cargando datos del panel:", err);
+        console.error('Error cargando datos del panel:', err);
       }
     }
 
     document.getElementById('btn-add-device').onclick = async () => {
       const idInput = document.getElementById('new-device-id');
       const deviceId = idInput.value.trim();
-      if(!deviceId) return;
+      if (!deviceId) return;
 
       const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
         body: JSON.stringify({ deviceId: deviceId })
       });
-      
-      if(res.ok) { 
-idInput.value = "";
-inicializarDashboard();
-} else {
-const errData = await res.json();
-alert(errData.error || "Error al vincular dispositivo");
-}
-};
-async function guardarParametros(deviceId) {
-const monto = document.getElementById('monto-' + deviceId).value;
-const tiempo = document.getElementById('tiempo-' + deviceId).value;
-const res = await fetch('/paneldecontrol/api/configurar-parametros', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
-body: JSON.stringify({ deviceId: deviceId, monto: monto, tiempo: tiempo })
-});
-if(res.ok) {
-agregarEventoAlPanel({
-timestamp: new Date().toLocaleTimeString('es-AR'),
-origen: 'PANEL',
-mensaje: 'Parámetros actualizados en ' + deviceId + ': $' + monto + ' / ' + tiempo + 's'
-});
-} else {
-alert("No se pudieron guardar los cambios.");
-}
-}
-function agregarEventoAlPanel(data) {
-if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
-let colorOrigen = "bg-blue-600";
-if(data.origen.includes("MP")) colorOrigen = "bg-blue-500";
-if(data.origen.includes("CYD") || data.origen.includes("mtml")) colorOrigen = "bg-yellow-500 text-gray-950";
-if(data.origen.includes("SERVER") || data.origen.includes("PANEL")) colorOrigen = "bg-green-600";
-if(data.origen.includes("ERROR")) colorOrigen = "bg-red-600";
-const item = document.createElement('div');
-item.className = "p-3 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2";
-item.innerHTML =
-  '<span class="text-gray-400 font-mono text-xs">[' + data.timestamp + ']</span>' +
-  '<span class="px-2 py-0.5 rounded text-xs font-bold ' + colorOrigen + '">' + data.origen + '</span>' +
-  '<span class="text-gray-200">' + (data.message || data.mensaje) + '</span>';
-logsContainer.insertBefore(item, logsContainer.firstChild);
-}
-const pusher = new Pusher('76d1c54f58cec3e446e2', {
-cluster: 'sa1',
-forceTLS: true
-});
-const channel = pusher.subscribe('canal-monitoreo');
-channel.bind('nuevo-evento', function(data) {
-agregarEventoAlPanel(data);
-});
+
+      if (res.ok) {
+        idInput.value = '';
+        inicializarDashboard();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Error al vincular dispositivo');
+      }
+    };
+
+    async function guardarParametros(deviceId, monto, tiempo) {
+      const res = await fetch('/paneldecontrol/api/configurar-parametros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
+        body: JSON.stringify({ deviceId: deviceId, monto: monto, tiempo: tiempo })
+      });
+
+      if (res.ok) {
+        agregarEventoAlPanel({
+          timestamp: new Date().toLocaleTimeString('es-AR'),
+          origen: 'PANEL',
+          mensaje: 'Parámetros actualizados en ' + deviceId + ': $' + monto + ' / ' + tiempo + 's'
+        });
+      } else {
+        alert('No se pudieron guardar los cambios.');
+      }
+    }
+
+    function agregarEventoAlPanel(data) {
+      if (logsContainer.innerHTML.includes('Esperando interacciones')) logsContainer.innerHTML = '';
+
+      const origen = String(data.origen || '');
+      let colorOrigen = 'bg-blue-600';
+      if (origen.includes('MP')) colorOrigen = 'bg-blue-500';
+      if (origen.includes('CYD') || origen.includes('mtml')) colorOrigen = 'bg-yellow-500 text-gray-950';
+      if (origen.includes('SERVER') || origen.includes('PANEL')) colorOrigen = 'bg-green-600';
+      if (origen.includes('ERROR')) colorOrigen = 'bg-red-600';
+
+      const item = document.createElement('div');
+      item.className = 'p-3 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2';
+      item.innerHTML =
+        '<span class="text-gray-400 font-mono text-xs">[' + esc(data.timestamp) + ']</span>' +
+        '<span class="px-2 py-0.5 rounded text-xs font-bold ' + colorOrigen + '">' + esc(origen) + '</span>' +
+        '<span class="text-gray-200">' + esc(data.message || data.mensaje) + '</span>';
+      logsContainer.insertBefore(item, logsContainer.firstChild);
+    }
+
+    const pusher = new Pusher('76d1c54f58cec3e446e2', {
+      cluster: 'sa1',
+      forceTLS: true
+    });
+    const channel = pusher.subscribe('canal-monitoreo');
+    channel.bind('nuevo-evento', function (data) {
+      agregarEventoAlPanel(data);
+    });
+  </script>
+</body>
+</html>
