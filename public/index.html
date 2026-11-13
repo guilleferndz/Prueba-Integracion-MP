@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Punto Eléctrico | Dashboard</title>
   <link rel="icon" href="data:,">
+  
   <!-- 1. Tailwind CSS Oficial -->
   <script src="https://tailwindcss.com"></script>
   
@@ -16,9 +17,7 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans min-h-screen">
 
-  <!-- ========================================================= -->
-  <!-- PANTALLA DE LOGIN (Estética oscura fiel al panel original) -->
-  <!-- ========================================================= -->
+  <!-- PANTALLA DE LOGIN -->
   <div id="login-screen" class="hidden min-h-screen flex flex-col justify-center items-center p-6">
     <div class="bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-2xl max-w-md w-full text-center">
       <div class="mb-4 flex justify-center">
@@ -28,18 +27,20 @@
       <p class="text-sm text-gray-400 mb-6">Dashboard de Gestión Vending • mtml</p>
       
       <button id="btn-google-login" class="w-full flex items-center justify-center gap-3 bg-gray-100 hover:bg-white text-gray-900 font-bold py-3 px-4 rounded-lg transition shadow-md">
-        <img src="https://flaticon.com" class="w-5 h-5" alt="Google">
+        <svg class="w-5 h-5" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z"/>
+        </svg>
         Ingresar con Google
       </button>
     </div>
   </div>
 
-  <!-- ========================================================= -->
-  <!-- PANEL PRINCIPAL (Diseño idéntico a tu primer index.html)  -->
-  <!-- ========================================================= -->
+  <!-- PANEL PRINCIPAL -->
   <div id="dashboard-screen" class="hidden container mx-auto p-6">
     
-    <!-- ENCABEZADO ORIGINAL -->
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-700 pb-4 mb-6 gap-4">
       <div>
         <h1 class="text-2xl font-bold text-yellow-400">⚡puntoelectrico.ar <span class="text-sm font-normal text-gray-400">| Dashboard</span></h1>
@@ -60,33 +61,27 @@
           <p class="text-xs text-gray-400">Los pagos escaneados en tus dispensers se acreditan directo en tu cuenta.</p>
         </div>
       </div>
-      <div id="mp-status-container">
-        <!-- Se llena dinámicamente -->
-      </div>
+      <div id="mp-status-container"></div>
     </div>
 
-    <!-- GRILLA PRINCIPAL DE 3 COLUMNAS (Igual al original) -->
+    <!-- GRILLA PRINCIPAL -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
-      <!-- COLUMNA 1: TERMINALES REGISTRADAS Y VINCULACIÓN -->
+      <!-- TERMINALES -->
       <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col justify-between">
         <div>
           <h2 class="text-lg font-semibold mb-4 text-gray-300">Terminales Registradas</h2>
           
-          <!-- Formulario compacto para sumar nuevo ESP32 -->
           <div class="flex gap-2 mb-4 pb-4 border-b border-gray-700">
             <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
             <button id="btn-add-device" class="bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition shrink-0">+ Vincular</button>
           </div>
 
-          <!-- Lista de dispensers con estilo de tarjetas bg-gray-700 -->
-          <div id="devices-container" class="space-y-3">
-            <!-- Tarjetas generadas por JS -->
-          </div>
+          <div id="devices-container" class="space-y-3"></div>
         </div>
       </div>
 
-      <!-- COLUMNA 2 y 3: FLUJO DE EVENTOS EN TIEMPO REAL -->
+      <!-- FLUJO DE EVENTOS -->
       <div class="lg:col-span-2 bg-gray-800 p-4 rounded-lg border border-gray-700">
         <h2 class="text-lg font-semibold mb-4 text-gray-300">Flujo de Eventos en Tiempo Real</h2>
         <div id="logs" class="space-y-2 h-[480px] overflow-y-auto pr-2">
@@ -98,10 +93,7 @@
   </div>
 
   <script>
-    // ==========================================
-    // CONFIGURACIÓN DE CREDENCIALES (COMPLETAR)
-    // ==========================================
-    const SUPABASE_URL = 'https://jgcjouqxopayronpayvs.supabase.co/rest/v1/';
+    const SUPABASE_URL = 'https://supabase.co';
     const SUPABASE_KEY = 'sb_publishable_lDbFZ8TE2dcWawH3MeK9Mw_kSD8IeaU';
     const MP_CLIENT_ID = '6990610008925907';
 
@@ -113,14 +105,11 @@
     let sessionJWT = null;
     let currentUserId = null;
 
-    // ==========================================
-    // CONTROL DE SESIÓN GOOGLE
-    // ==========================================
     _supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         sessionJWT = session.access_token;
         currentUserId = session.user.id;
-        document.getElementById('user-email').innerText = `Operador: ${session.user.email}`;
+        document.getElementById('user-email').innerText = 'Operador: ' + session.user.email;
         loginScreen.classList.add('hidden');
         dashboardScreen.classList.remove('hidden');
         inicializarDashboard();
@@ -139,29 +128,24 @@
 
     document.getElementById('btn-logout').onclick = () => _supabase.auth.signOut();
 
-    // ==========================================
-    // CARGA DE DATOS Y RENDERIZADO DE TARJETAS
-    // ==========================================
     async function inicializarDashboard() {
       try {
         const res = await fetch('/paneldecontrol/api/mis-datos', { 
-          headers: { 'Authorization': `Bearer ${sessionJWT}` } 
+          headers: { 'Authorization': 'Bearer ' + sessionJWT } 
         });
         const datos = await res.json();
         
-        // 1. Estado de Mercado Pago
         const mpContainer = document.getElementById('mp-status-container');
         if(datos.mp_vinculado) {
-          mpContainer.innerHTML = `<span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900">✓ CUENTA VINCULADA</span>`;
+          mpContainer.innerHTML = '<span class="px-3 py-1 bg-green-500 text-xs font-semibold rounded-full text-gray-900">✓ CUENTA VINCULADA</span>';
         } else {
-          const oauthUrl = `https://mercadopago.com{MP_CLIENT_ID}&response_type=code&platform_id=mp&redirect_uri=https://puntoelectrico.ar{currentUserId}`;
-          mpContainer.innerHTML = `<a href="${oauthUrl}" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>`;
+          const oauthUrl = 'https://mercadopago.com' + MP_CLIENT_ID + '&response_type=code&platform_id=mp&redirect_uri=https://puntoelectrico.ar' + currentUserId;
+          mpContainer.innerHTML = '<a href="' + oauthUrl + '" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white rounded transition shadow">Vincular Mercado Pago</a>';
         }
 
-        // 2. Renderizar Terminales con el estilo bg-gray-700 original
         const devContainer = document.getElementById('devices-container');
         if (!datos.dispositivos || datos.dispositivos.length === 0) {
-          devContainer.innerHTML = `<p class="text-gray-500 text-xs italic">Aún no vinculaste ninguna terminal mtml.</p>`;
+          devContainer.innerHTML = '<p class="text-gray-500 text-xs italic">Aún no vinculaste ninguna terminal mtml.</p>';
           return;
         }
 
@@ -169,30 +153,27 @@
         datos.dispositivos.forEach(dev => {
           const card = document.createElement('div');
           card.className = "p-3 bg-gray-700 rounded border border-gray-600 space-y-3";
-          card.innerHTML = `
-            <div class="flex justify-between items-center">
-              <div>
-                <p class="font-bold text-sm text-yellow-400 font-mono">${dev.device_id}</p>
-                <p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>
-              </div>
-              <span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal Activa"></span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-600">
-              <div>
-                <label class="text-[11px] text-gray-300 block">Monto ($ ARS)</label>
-                <input type="number" id="monto-${dev.device_id}" value="${dev.monto}" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">
-              </div>
-              <div>
-                <label class="text-[11px] text-gray-300 block">Tiempo (Seg)</label>
-                <input type="number" id="tiempo-${dev.device_id}" value="${dev.tiempo}" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">
-              </div>
-            </div>
-
-            <button onclick="guardarParametros('${dev.device_id}')" class="w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">
-              Guardar Configuración
-            </button>
-          `;
+          card.innerHTML = 
+            '<div class="flex justify-between items-center">' +
+              '<div>' +
+                '<p class="font-bold text-sm text-yellow-400 font-mono">' + dev.device_id + '</p>' +
+                '<p class="text-xs text-gray-400">Modelo: ESP32-2432S028</p>' +
+              '</div>' +
+              '<span class="h-3 w-3 bg-green-400 rounded-full" title="Terminal Activa"></span>' +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-600">' +
+              '<div>' +
+                '<label class="text-[11px] text-gray-300 block">Monto ($ ARS)</label>' +
+                '<input type="number" id="monto-' + dev.device_id + '" value="' + dev.monto + '" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">' +
+              '</div>' +
+              '<div>' +
+                '<label class="text-[11px] text-gray-300 block">Tiempo (Seg)</label>' +
+                '<input type="number" id="tiempo-' + dev.device_id + '" value="' + dev.tiempo + '" class="bg-gray-800 border border-gray-600 text-xs rounded px-2 py-1 w-full text-white mt-1 font-mono">' +
+              '</div>' +
+            '</div>' +
+            '<button onclick="guardarParametros(\'' + dev.device_id + '\')" class="w-full py-1.5 bg-gray-800 hover:bg-gray-900 text-yellow-400 text-xs rounded font-semibold transition border border-gray-600">' +
+              'Guardar Configuración' +
+            '</button>';
           devContainer.appendChild(card);
         });
       } catch (err) {
@@ -200,19 +181,18 @@
       }
     }
 
-// ==========================================
-// ACCIONES DE USUARIO
-// ==========================================
-document.getElementById('btn-add-device').onclick = async () => {
-const idInput = document.getElementById('new-device-id');
-const deviceId = idInput.value.trim();
-if(!deviceId) return;
-const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json', 'Authorization': Bearer ${sessionJWT} },
-body: JSON.stringify({ deviceId })
-});
-if(res.ok) {
+    document.getElementById('btn-add-device').onclick = async () => {
+      const idInput = document.getElementById('new-device-id');
+      const deviceId = idInput.value.trim();
+      if(!deviceId) return;
+
+      const res = await fetch('/paneldecontrol/api/vincular-dispositivo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
+        body: JSON.stringify({ deviceId: deviceId })
+      });
+      
+      if(res.ok) { 
 idInput.value = "";
 inicializarDashboard();
 } else {
@@ -221,26 +201,23 @@ alert(errData.error || "Error al vincular dispositivo");
 }
 };
 async function guardarParametros(deviceId) {
-const monto = document.getElementById(monto-${deviceId}).value;
-const tiempo = document.getElementById(tiempo-${deviceId}).value;
+const monto = document.getElementById('monto-' + deviceId).value;
+const tiempo = document.getElementById('tiempo-' + deviceId).value;
 const res = await fetch('/paneldecontrol/api/configurar-parametros', {
 method: 'POST',
-headers: { 'Content-Type': 'application/json', 'Authorization': Bearer ${sessionJWT} },
-body: JSON.stringify({ deviceId, monto, tiempo })
+headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
+body: JSON.stringify({ deviceId: deviceId, monto: monto, tiempo: tiempo })
 });
 if(res.ok) {
 agregarEventoAlPanel({
 timestamp: new Date().toLocaleTimeString('es-AR'),
 origen: 'PANEL',
-mensaje: Parámetros actualizados en ${deviceId}: $${monto} / ${tiempo}s
+mensaje: 'Parámetros actualizados en ' + deviceId + ': $' + monto + ' / ' + tiempo + 's'
 });
 } else {
 alert("No se pudieron guardar los cambios.");
 }
 }
-// ==========================================
-// MONITOR DE EVENTOS (Diseño exacto al original)
-// ==========================================
 function agregarEventoAlPanel(data) {
 if(logsContainer.innerHTML.includes("Esperando interacciones")) logsContainer.innerHTML = "";
 let colorOrigen = "bg-blue-600";
@@ -250,10 +227,14 @@ if(data.origen.includes("SERVER") || data.origen.includes("PANEL")) colorOrigen 
 if(data.origen.includes("ERROR")) colorOrigen = "bg-red-600";
 const item = document.createElement('div');
 item.className = "p-3 border-l-4 border-yellow-500 bg-gray-700 rounded text-sm flex flex-col md:flex-row md:items-center justify-between gap-2";
-item.innerHTML = <div class="flex items-center gap-3"> <span class="text-xs text-gray-400 font-mono">[${data.timestamp}]</span> <span class="px-2 py-0.5 rounded text-xs font-bold ${colorOrigen}">${data.origen}</span> <span class="text-gray-200">${data.message || data.mensaje}</span> </div>;
+item.innerHTML =
+'' +
+'[' + data.timestamp + ']' +
+'' + data.origen + '' +
+'' + (data.message || data.mensaje) + '' +
+'';
 logsContainer.insertBefore(item, logsContainer.firstChild);
 }
-// Escucha en Vivo con Pusher
 const pusher = new Pusher('76d1c54f58cec3e446e2', {
 cluster: 'sa1',
 forceTLS: true
