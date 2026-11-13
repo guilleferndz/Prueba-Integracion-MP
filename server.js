@@ -9,6 +9,7 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false })); // necesario para la autenticación de canales privados de Pusher
 
 // ==========================================
 // CONFIGURACIÓN
@@ -21,7 +22,7 @@ const STATE_SECRET = process.env.OAUTH_STATE_SECRET || process.env.MERCADO_PAGO_
 // ==========================================
 // CLIENTES DE INFRAESTRUCTURA (SUPABASE & PUSHER)
 // ==========================================
-// IMPORTANTE: el backend debe usar la SERVICE ROLE key (nunca en el frontend).
+// El backend usa la SERVICE ROLE key (nunca en el frontend).
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
@@ -35,12 +36,35 @@ const pusher = new Pusher({
   useTLS: true
 });
 
-// Servir archivos estáticos bajo la subruta
+// Archivos estáticos
 app.use('/paneldecontrol', express.static(path.join(__dirname, 'public')));
 app.get('/paneldecontrol', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
-// Middleware para verificar el token de Google (Supabase JWT)
+// ==========================================
+// UTILIDADES
+// ==========================================
+const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+
+function hashesIguales(hashA, hashB) {
+  if (!hashA || !hashB) return false;
+  const a = Buffer.from(hashA);
+  const b = Buffer.from(hashB);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+// Límite simple de intentos en memoria (anti fuerza bruta del código de vinculación)
+const intentos = new Map();
+function permitirIntento(clave, max = 5, ventanaMs = 10 * 60 * 1000) {
+  const ahora = Date.now();
+  const lista = (intentos.get(clave) || []).filter(t => ahora - t < ventanaMs);
+  if (lista.length >= max) { intentos.set(clave, lista); return false; }
+  lista.push(ahora);
+  intentos.set(clave, lista);
+  return true;
+}
+
+// Middleware: verifica el JWT de Supabase (Google o email/contraseña)
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No autorizado' });
@@ -53,18 +77,17 @@ async function requireAuth(req, res, next) {
   next();
 }
 
-// Helper global para el flujo de logs en tiempo real en la interfaz
-function emitirLog(origen, mensaje) {
-  pusher.trigger('canal-monitoreo', 'nuevo-evento', {
+// Logs en tiempo real: cada usuario recibe SOLO los de sus equipos (canal privado)
+function emitirLog(usuarioId, origen, mensaje) {
+  if (!usuarioId) return;
+  pusher.trigger(`private-user-${usuarioId}`, 'nuevo-evento', {
     timestamp: new Date().toLocaleTimeString('es-AR'),
     origen,
     mensaje
   }).catch(err => console.error('Error en Pusher logs:', err));
 }
 
-// ==========================================
-// STATE FIRMADO PARA OAUTH (evita que alguien vincule su cuenta MP a otro usuario)
-// ==========================================
+// State firmado para OAuth de Mercado Pago
 function firmarState(userId) {
   const payload = Buffer.from(JSON.stringify({ u: userId, e: Date.now() + 10 * 60 * 1000 })).toString('base64url');
   const sig = crypto.createHmac('sha256', STATE_SECRET).update(payload).digest('base64url');
@@ -87,11 +110,19 @@ function verificarState(state) {
   }
 }
 
+// Asegura que exista la fila del usuario (primer login con Google o email)
+async function asegurarUsuario(user) {
+  await supabase
+    .from('usuarios')
+    .upsert({ id: user.id, email: user.email }, { onConflict: 'id', ignoreDuplicates: true });
+}
+
 // ==========================================
-// ENDPOINT: GENERACIÓN DINÁMICA DE QR (ORIGEN: ESP32)
+// ESP32: GENERACIÓN DE QR (autenticado con el secreto del equipo)
 // ==========================================
 app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
   const { deviceId } = req.body;
+  const secreto = req.headers['x-device-secret'];
 
   try {
     const { data: device, error: devErr } = await supabase
@@ -100,20 +131,22 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
       .eq('device_id', deviceId)
       .single();
 
-    if (devErr || !device) {
-      emitirLog('ERROR', `Hardware no vinculado: ${deviceId}`);
-      return res.status(404).json({ error: 'Dispositivo no registrado o sin dueño' });
+    if (devErr || !device || !hashesIguales(device.device_secret_hash, sha256(secreto || ''))) {
+      return res.status(401).json({ error: 'Dispositivo no autorizado', code: 'NO_AUTORIZADO' });
+    }
+
+    if (!device.usuario_id) {
+      return res.status(400).json({ error: 'El equipo todavía no fue vinculado a una cuenta', code: 'SIN_DUENO' });
     }
 
     const tokenCliente = device.usuarios?.mp_access_token;
     if (!tokenCliente) {
-      emitirLog(deviceId, 'Fallo: El dueño no vinculó Mercado Pago');
-      return res.status(400).json({ error: 'El dueño del equipo no configuró Mercado Pago' });
+      emitirLog(device.usuario_id, deviceId, 'Fallo: Mercado Pago no está vinculado');
+      return res.status(400).json({ error: 'El dueño del equipo no configuró Mercado Pago', code: 'SIN_MP' });
     }
 
-    emitirLog(deviceId, `Solicitó QR para Dispenser. Monto: $${device.monto}`);
+    emitirLog(device.usuario_id, deviceId, `Solicitó QR. Monto: $${device.monto}`);
 
-    // Checkout Preferences: genera el link de pago (init_point)
     const mpResponse = await fetch(`${MP_API}/checkout/preferences`, {
       method: 'POST',
       headers: {
@@ -122,7 +155,6 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
       },
       body: JSON.stringify({
         external_reference: deviceId,
-        // El deviceId va en la URL para saber con qué token consultar el pago después
         notification_url: `${BASE_URL}/api/webhook?device=${encodeURIComponent(deviceId)}`,
         items: [{
           title: `Vending Dispenser ${deviceId}`,
@@ -137,14 +169,10 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
     const mpData = await mpResponse.json();
     if (!mpResponse.ok) throw new Error(mpData.message || 'Error al crear preferencia en MP');
 
-    res.json({
-      success: true,
-      qr_data: mpData.init_point
-    });
+    res.json({ success: true, qr_data: mpData.init_point });
 
   } catch (error) {
     console.error(error);
-    emitirLog('ERROR', `Fallo generación QR: ${error.message}`);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -152,9 +180,7 @@ app.post('/paneldecontrol/api/crear-qr', async (req, res) => {
 // ==========================================
 // WEBHOOK DE MERCADO PAGO
 // ==========================================
-// Evita activar dos veces con el mismo pago (se reinicia si el servidor se reinicia;
-// para algo más robusto guardá los payment_id en una tabla de Supabase).
-const pagosProcesados = new Set();
+const pagosProcesados = new Set(); // para algo más robusto, guardalos en una tabla
 
 app.post('/api/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -167,26 +193,24 @@ app.post('/api/webhook', async (req, res) => {
     if (type !== 'payment' || !paymentId || !deviceId) return;
     if (pagosProcesados.has(String(paymentId))) return;
 
-    // El pago pertenece a la cuenta del VENDEDOR, así que se consulta con SU token
     const { data: device } = await supabase
       .from('dispositivos')
-      .select('device_id, tiempo, usuarios(mp_access_token)')
+      .select('device_id, usuario_id, tiempo, usuarios(mp_access_token)')
       .eq('device_id', deviceId)
       .single();
 
     const tokenVendedor = device?.usuarios?.mp_access_token;
     if (!tokenVendedor) return;
 
+    // El pago pertenece al vendedor: se consulta con SU token
     const paymentResponse = await fetch(`${MP_API}/v1/payments/${encodeURIComponent(paymentId)}`, {
       headers: { 'Authorization': `Bearer ${tokenVendedor}` }
     });
     const pagoInfo = await paymentResponse.json();
     if (!paymentResponse.ok) return;
-
-    // Verificaciones: el pago debe corresponder a este dispenser
     if (pagoInfo.external_reference !== deviceId) return;
 
-    emitirLog('MP_WEBHOOK', `Pago ID ${paymentId} - Dispenser: ${deviceId} - Estado: ${pagoInfo.status}`);
+    emitirLog(device.usuario_id, 'MP_WEBHOOK', `Pago ${paymentId} - ${deviceId} - Estado: ${pagoInfo.status}`);
 
     if (pagoInfo.status === 'approved') {
       pagosProcesados.add(String(paymentId));
@@ -197,7 +221,7 @@ app.post('/api/webhook', async (req, res) => {
         amount: pagoInfo.transaction_amount,
         tiempo: tiempoActivacion
       });
-      emitirLog('SERVER', `Pulso de activación de ${tiempoActivacion}s enviado al hardware ${deviceId}`);
+      emitirLog(device.usuario_id, 'SERVER', `Activación de ${tiempoActivacion}s enviada a ${deviceId}`);
     }
   } catch (error) {
     console.error('Error procesando Webhook:', error);
@@ -205,11 +229,10 @@ app.post('/api/webhook', async (req, res) => {
 });
 
 // ==========================================
-// FLUJO OAUTH: CALLBACK DE MERCADO PAGO
+// OAUTH MERCADO PAGO: CALLBACK
 // ==========================================
 app.get('/api/auth/callback', async (req, res) => {
   const { code, state } = req.query;
-
   if (!code || !state) return res.status(400).send('Faltan parámetros OAuth obligatorios.');
 
   const userId = verificarState(state);
@@ -233,22 +256,14 @@ app.get('/api/auth/callback', async (req, res) => {
       throw new Error(tokenData.message || 'Error en el intercambio de tokens');
     }
 
-    // Email real del usuario (requiere service role)
-    let email = 'oauth_user@puntoelectrico.ar';
-    try {
-      const { data } = await supabase.auth.admin.getUserById(userId);
-      if (data?.user?.email) email = data.user.email;
-    } catch (_) { /* se usa el valor por defecto */ }
-
     const { error: dbErr } = await supabase
       .from('usuarios')
-      .upsert({
-        id: userId,
-        email,
+      .update({
         mp_access_token: tokenData.access_token,
         mp_refresh_token: tokenData.refresh_token,
         mp_user_id: String(tokenData.user_id)
-      });
+      })
+      .eq('id', userId);
     if (dbErr) throw new Error(dbErr.message);
 
     res.redirect('/paneldecontrol?mp_connected=true');
@@ -260,52 +275,89 @@ app.get('/api/auth/callback', async (req, res) => {
 });
 
 // ==========================================
-// API PRIVADA: GESTIÓN DE CONFIGURACIÓN DEL PANEL DE CONTROL
+// API PRIVADA DEL PANEL
 // ==========================================
-app.get('/paneldecontrol/api/mis-datos', requireAuth, async (req, res) => {
-  const { data: usuario } = await supabase.from('usuarios').select('*').eq('id', req.user.id).maybeSingle();
-  const { data: dispositivos } = await supabase.from('dispositivos').select('*').eq('usuario_id', req.user.id);
 
+// Autoriza al navegador a suscribirse SOLO a su propio canal privado de logs
+app.post('/paneldecontrol/api/pusher-auth', requireAuth, (req, res) => {
+  const { socket_id, channel_name } = req.body;
+  if (channel_name !== `private-user-${req.user.id}`) {
+    return res.status(403).json({ error: 'Canal no permitido' });
+  }
+  res.send(pusher.authorizeChannel(socket_id, channel_name));
+});
+
+// Estado general: dispositivos vinculados, Mercado Pago y URL de autorización
+app.get('/paneldecontrol/api/mis-datos', requireAuth, async (req, res) => {
+  await asegurarUsuario(req.user);
+
+  const { data: usuario } = await supabase
+    .from('usuarios').select('mp_access_token').eq('id', req.user.id).maybeSingle();
+  const { data: dispositivos } = await supabase
+    .from('dispositivos').select('device_id, monto, tiempo').eq('usuario_id', req.user.id);
+
+  const tieneDispositivos = (dispositivos || []).length > 0;
   const mpVinculado = !!usuario?.mp_access_token;
 
-  // La URL de autorización se arma en el servidor con un state firmado
-  const oauthUrl = `https://auth.mercadopago.com.ar/authorization?client_id=${encodeURIComponent(process.env.MERCADO_PAGO_CLIENT_ID)}` +
-    `&response_type=code&platform_id=mp` +
-    `&state=${encodeURIComponent(firmarState(req.user.id))}` +
-    `&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI)}`;
+  // Paso 2: Mercado Pago solo se habilita cuando ya hay al menos un equipo vinculado
+  let oauthUrl = null;
+  if (tieneDispositivos && !mpVinculado) {
+    oauthUrl = `https://auth.mercadopago.com.ar/authorization?client_id=${encodeURIComponent(process.env.MERCADO_PAGO_CLIENT_ID)}` +
+      `&response_type=code&platform_id=mp` +
+      `&state=${encodeURIComponent(firmarState(req.user.id))}` +
+      `&redirect_uri=${encodeURIComponent(MP_REDIRECT_URI)}`;
+  }
 
   res.json({
+    user_id: req.user.id,
     mp_vinculado: mpVinculado,
-    mp_oauth_url: mpVinculado ? null : oauthUrl,
+    mp_oauth_url: oauthUrl,
     dispositivos: dispositivos || []
   });
 });
 
+// Paso 1: vincular un ESP32 con su ID + código de vinculación
 app.post('/paneldecontrol/api/vincular-dispositivo', requireAuth, async (req, res) => {
-  const { deviceId } = req.body;
-  if (!/^[a-zA-Z0-9]+-[a-zA-Z0-9]+-[a-zA-Z0-9]+$/.test(deviceId || '')) {
+  const deviceId = String(req.body.deviceId || '').trim().toLowerCase();
+  const codigo = String(req.body.codigo || '').trim().toUpperCase();
+
+  if (!/^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(deviceId)) {
     return res.status(400).json({ error: 'Formato de ID inválido. Debe ser xxxx-xxxx-xxxx' });
   }
+  if (!codigo) return res.status(400).json({ error: 'Ingresá el código de vinculación' });
 
-  // No permitir "robar" un equipo que ya tiene otro dueño
-  const { data: existente } = await supabase
+  if (!permitirIntento(`vincular:${req.user.id}`)) {
+    return res.status(429).json({ error: 'Demasiados intentos. Probá de nuevo en unos minutos.' });
+  }
+
+  const errorGenerico = { error: 'ID o código de vinculación incorrecto, o el equipo ya está vinculado' };
+
+  const { data: device } = await supabase
     .from('dispositivos')
-    .select('usuario_id')
+    .select('device_id, usuario_id, codigo_vinculacion_hash')
     .eq('device_id', deviceId)
     .maybeSingle();
 
-  if (existente?.usuario_id && existente.usuario_id !== req.user.id) {
-    return res.status(409).json({ error: 'Este equipo ya está vinculado a otra cuenta' });
+  if (!device || device.usuario_id || !hashesIguales(device.codigo_vinculacion_hash, sha256(codigo))) {
+    return res.status(400).json(errorGenerico);
   }
 
-  const { error } = await supabase
-    .from('dispositivos')
-    .upsert({ device_id: deviceId, usuario_id: req.user.id });
+  await asegurarUsuario(req.user);
 
-  if (error) return res.status(400).json({ error: 'No se pudo vincular el equipo' });
+  const { data: actualizado, error } = await supabase
+    .from('dispositivos')
+    .update({ usuario_id: req.user.id, vinculado_en: new Date().toISOString() })
+    .eq('device_id', deviceId)
+    .is('usuario_id', null) // evita carreras: solo si sigue sin dueño
+    .select('device_id');
+
+  if (error || !actualizado || actualizado.length === 0) return res.status(400).json(errorGenerico);
+
+  emitirLog(req.user.id, 'PANEL', `Equipo ${deviceId} vinculado a tu cuenta`);
   res.json({ success: true });
 });
 
+// Paso 3: monto y tiempo (solo si ya vinculó Mercado Pago)
 app.post('/paneldecontrol/api/configurar-parametros', requireAuth, async (req, res) => {
   const { deviceId, monto, tiempo } = req.body;
   const montoNum = Number(monto);
@@ -315,18 +367,27 @@ app.post('/paneldecontrol/api/configurar-parametros', requireAuth, async (req, r
     return res.status(400).json({ error: 'Monto y tiempo deben ser números mayores a 0' });
   }
 
-  const { error } = await supabase
+  const { data: usuario } = await supabase
+    .from('usuarios').select('mp_access_token').eq('id', req.user.id).maybeSingle();
+  if (!usuario?.mp_access_token) {
+    return res.status(403).json({ error: 'Primero vinculá tu cuenta de Mercado Pago' });
+  }
+
+  const { data: actualizado, error } = await supabase
     .from('dispositivos')
     .update({ monto: montoNum, tiempo: tiempoNum })
     .eq('device_id', deviceId)
-    .eq('usuario_id', req.user.id);
+    .eq('usuario_id', req.user.id)
+    .select('device_id');
 
-  if (error) return res.status(400).json({ error: 'Error al actualizar parámetros' });
+  if (error || !actualizado || actualizado.length === 0) {
+    return res.status(400).json({ error: 'No se pudo actualizar el equipo' });
+  }
   res.json({ success: true });
 });
 
 // ==========================================
-// INICIALIZACIÓN DEL SERVIDOR
+// INICIALIZACIÓN
 // ==========================================
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => console.log(`[SERVER] Multi-tenant operativo en puerto ${PORT}`));
