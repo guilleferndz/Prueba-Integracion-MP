@@ -72,7 +72,10 @@ async function requireAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
   const { data: { user } = {}, error } = await supabase.auth.getUser(token);
 
-  if (error || !user) return res.status(401).json({ error: 'Sesión inválida' });
+  if (error || !user) {
+    console.error('[AUTH] Sesión inválida. Motivo:', error ? error.message : 'sin usuario', '| SUPABASE_URL:', process.env.SUPABASE_URL);
+    return res.status(401).json({ error: 'Sesión inválida' });
+  }
   req.user = user;
   next();
 }
@@ -389,5 +392,10 @@ app.post('/paneldecontrol/api/configurar-parametros', requireAuth, async (req, r
 // ==========================================
 // INICIALIZACIÓN
 // ==========================================
+// Chequeo de variables de entorno al arrancar
+['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'MERCADO_PAGO_CLIENT_ID', 'MERCADO_PAGO_CLIENT_SECRET', 'PUSHER_APP_ID', 'PUSHER_KEY', 'PUSHER_SECRET', 'PUSHER_CLUSTER']
+  .forEach(v => { if (!process.env[v]) console.warn(`[CONFIG] Falta la variable de entorno ${v}`); });
+console.log('[CONFIG] SUPABASE_URL =', process.env.SUPABASE_URL);
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => console.log(`[SERVER] Multi-tenant operativo en puerto ${PORT}`));
