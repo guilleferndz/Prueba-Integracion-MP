@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: false })); // necesario para la autentica
 // ==========================================
 // CONFIGURACIÓN
 // ==========================================
-const BASE_URL = 'https://puntoelectrico.ar/';
+const BASE_URL = 'https://puntoelectrico.ar';
 const MP_REDIRECT_URI = `${BASE_URL}/api/auth/callback`; // Debe coincidir EXACTO con la Redirect URL cargada en Mercado Pago
 const MP_API = 'https://api.mercadopago.com';
 const STATE_SECRET = process.env.OAUTH_STATE_SECRET || process.env.MERCADO_PAGO_CLIENT_SECRET;
