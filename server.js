@@ -487,7 +487,10 @@ app.post('/paneldecontrol/api/solicitar-codigo', async (req, res) => {
     .eq('device_id', deviceId)
     .is('usuario_id', null);
 
-  if (error) return res.status(500).json({ error: 'No se pudo generar el código' });
+  if (error) {
+    console.error('[CODIGO] No se pudo guardar el código en Supabase:', error.message);
+    return res.status(500).json({ error: 'No se pudo generar el código' });
+  }
 
   res.json({
     success: true,
