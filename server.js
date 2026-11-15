@@ -19,6 +19,13 @@ const MP_REDIRECT_URI = `${BASE_URL}/api/auth/callback`; // Debe coincidir EXACT
 const MP_API = 'https://api.mercadopago.com';
 const STATE_SECRET = process.env.OAUTH_STATE_SECRET || process.env.MERCADO_PAGO_CLIENT_SECRET;
 
+// Códigos de vinculación: dinámicos, de un solo uso y con vencimiento
+const ALFABETO_CODIGO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I para evitar confusiones
+const CODIGO_VIDA_MS = 10 * 60 * 1000;   // vence a los 10 minutos
+const MAX_INTENTOS_CODIGO = 5;           // errores permitidos por código antes de anularlo
+const MONTO_POR_DEFECTO = 100;           // valores a los que vuelve un equipo al desvincularse
+const TIEMPO_POR_DEFECTO = 5;
+
 // ==========================================
 // CLIENTES DE INFRAESTRUCTURA (SUPABASE & PUSHER)
 // ==========================================
@@ -118,6 +125,24 @@ async function asegurarUsuario(user) {
   await supabase
     .from('usuarios')
     .upsert({ id: user.id, email: user.email }, { onConflict: 'id', ignoreDuplicates: true });
+}
+
+// Genera un código aleatorio criptográfico de 8 caracteres: ABCD-EFGH
+function generarCodigo() {
+  let c = '';
+  for (let i = 0; i < 8; i++) c += ALFABETO_CODIGO[crypto.randomInt(ALFABETO_CODIGO.length)];
+  return c.slice(0, 4) + '-' + c.slice(4);
+}
+
+// Forma canónica: sin guiones ni espacios, en mayúsculas (el usuario puede escribirlo como quiera)
+const canonico = (c) => String(c || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+// Autentica a un ESP32 por su ID + secreto
+async function autenticarEquipo(deviceId, secreto) {
+  const { data: device } = await supabase
+    .from('dispositivos').select('*').eq('device_id', deviceId).maybeSingle();
+  if (!device || !hashesIguales(device.device_secret_hash, sha256(secreto || ''))) return null;
+  return device;
 }
 
 // ==========================================
@@ -319,10 +344,10 @@ app.get('/paneldecontrol/api/mis-datos', requireAuth, async (req, res) => {
   });
 });
 
-// Paso 1: vincular un ESP32 con su ID + código de vinculación
+// Paso 1: vincular un ESP32 con su ID + el código que muestra SU pantalla
 app.post('/paneldecontrol/api/vincular-dispositivo', requireAuth, async (req, res) => {
   const deviceId = String(req.body.deviceId || '').trim().toLowerCase();
-  const codigo = String(req.body.codigo || '').trim().toUpperCase();
+  const codigo = canonico(req.body.codigo);
 
   if (!/^[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$/.test(deviceId)) {
     return res.status(400).json({ error: 'Formato de ID inválido. Debe ser xxxx-xxxx-xxxx' });
@@ -333,30 +358,76 @@ app.post('/paneldecontrol/api/vincular-dispositivo', requireAuth, async (req, re
     return res.status(429).json({ error: 'Demasiados intentos. Probá de nuevo en unos minutos.' });
   }
 
-  const errorGenerico = { error: 'ID o código de vinculación incorrecto, o el equipo ya está vinculado' };
+  const errorGenerico = { error: 'ID o código incorrecto, vencido, o el equipo ya está vinculado' };
 
   const { data: device } = await supabase
     .from('dispositivos')
-    .select('device_id, usuario_id, codigo_vinculacion_hash')
+    .select('device_id, usuario_id, codigo_vinculacion_hash, codigo_expira, codigo_intentos')
     .eq('device_id', deviceId)
     .maybeSingle();
 
-  if (!device || device.usuario_id || !hashesIguales(device.codigo_vinculacion_hash, sha256(codigo))) {
+  const vigente = device && !device.usuario_id && device.codigo_vinculacion_hash &&
+    device.codigo_expira && new Date(device.codigo_expira) > new Date() &&
+    (device.codigo_intentos || 0) < MAX_INTENTOS_CODIGO;
+
+  if (!vigente) return res.status(400).json(errorGenerico);
+
+  if (!hashesIguales(device.codigo_vinculacion_hash, sha256(codigo))) {
+    // Código incorrecto: se cuenta el intento y, al llegar al máximo, se anula el código
+    const intentos = (device.codigo_intentos || 0) + 1;
+    const cambios = intentos >= MAX_INTENTOS_CODIGO
+      ? { codigo_vinculacion_hash: null, codigo_expira: null, codigo_intentos: 0 }
+      : { codigo_intentos: intentos };
+    await supabase.from('dispositivos').update(cambios).eq('device_id', deviceId).is('usuario_id', null);
     return res.status(400).json(errorGenerico);
   }
 
   await asegurarUsuario(req.user);
 
+  // Código correcto: se vincula y se consume (un solo uso)
   const { data: actualizado, error } = await supabase
     .from('dispositivos')
-    .update({ usuario_id: req.user.id, vinculado_en: new Date().toISOString() })
+    .update({
+      usuario_id: req.user.id,
+      vinculado_en: new Date().toISOString(),
+      codigo_vinculacion_hash: null,
+      codigo_expira: null,
+      codigo_intentos: 0
+    })
     .eq('device_id', deviceId)
-    .is('usuario_id', null) // evita carreras: solo si sigue sin dueño
+    .is('usuario_id', null)
     .select('device_id');
 
   if (error || !actualizado || actualizado.length === 0) return res.status(400).json(errorGenerico);
 
   emitirLog(req.user.id, 'PANEL', `Equipo ${deviceId} vinculado a tu cuenta`);
+  res.json({ success: true });
+});
+
+// Desvincular: el equipo queda sin dueño y con valores de fábrica
+app.post('/paneldecontrol/api/desvincular-dispositivo', requireAuth, async (req, res) => {
+  const deviceId = String(req.body.deviceId || '').trim().toLowerCase();
+
+  const { data: actualizado, error } = await supabase
+    .from('dispositivos')
+    .update({
+      usuario_id: null,
+      vinculado_en: null,
+      codigo_vinculacion_hash: null,
+      codigo_expira: null,
+      codigo_intentos: 0,
+      monto: MONTO_POR_DEFECTO,
+      tiempo: TIEMPO_POR_DEFECTO
+    })
+    .eq('device_id', deviceId)
+    .eq('usuario_id', req.user.id)   // solo el dueño actual puede desvincular
+    .select('device_id');
+
+  if (error || !actualizado || actualizado.length === 0) {
+    return res.status(400).json({ error: 'No se pudo desvincular el equipo' });
+  }
+
+  emitirLog(req.user.id, 'PANEL', `Equipo ${deviceId} desvinculado de tu cuenta`);
   res.json({ success: true });
 });
 
@@ -387,6 +458,51 @@ app.post('/paneldecontrol/api/configurar-parametros', requireAuth, async (req, r
     return res.status(400).json({ error: 'No se pudo actualizar el equipo' });
   }
   res.json({ success: true });
+});
+
+// ==========================================
+// ESP32: CÓDIGO DE VINCULACIÓN DINÁMICO Y ESTADO
+// ==========================================
+// El equipo pide un código para mostrarlo en pantalla. Solo se entrega si NO tiene dueño.
+app.post('/paneldecontrol/api/solicitar-codigo', async (req, res) => {
+  const deviceId = String(req.body.deviceId || '');
+  const device = await autenticarEquipo(deviceId, req.headers['x-device-secret']);
+  if (!device) return res.status(401).json({ error: 'Dispositivo no autorizado', code: 'NO_AUTORIZADO' });
+
+  if (device.usuario_id) {
+    return res.status(409).json({ error: 'El equipo ya está vinculado a una cuenta', code: 'YA_VINCULADO' });
+  }
+  if (!permitirIntento(`codigo:${deviceId}`, 10, 10 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Demasiados pedidos de código', code: 'DEMASIADOS' });
+  }
+
+  const codigo = generarCodigo();
+  const { error } = await supabase
+    .from('dispositivos')
+    .update({
+      codigo_vinculacion_hash: sha256(canonico(codigo)),
+      codigo_expira: new Date(Date.now() + CODIGO_VIDA_MS).toISOString(),
+      codigo_intentos: 0
+    })
+    .eq('device_id', deviceId)
+    .is('usuario_id', null);
+
+  if (error) return res.status(500).json({ error: 'No se pudo generar el código' });
+
+  res.json({
+    success: true,
+    codigo,
+    expira_en: CODIGO_VIDA_MS / 1000,
+    // URL para el QR: abre el panel con el ID y el código ya cargados
+    url: `${BASE_URL}/paneldecontrol?vincular=${encodeURIComponent(deviceId)}&codigo=${encodeURIComponent(codigo)}`
+  });
+});
+
+// El equipo consulta si ya fue vinculado (para salir de la pantalla de código)
+app.post('/paneldecontrol/api/estado-equipo', async (req, res) => {
+  const device = await autenticarEquipo(String(req.body.deviceId || ''), req.headers['x-device-secret']);
+  if (!device) return res.status(401).json({ error: 'Dispositivo no autorizado', code: 'NO_AUTORIZADO' });
+  res.json({ success: true, vinculado: !!device.usuario_id });
 });
 
 // ==========================================
