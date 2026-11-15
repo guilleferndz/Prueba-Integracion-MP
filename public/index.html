@@ -70,13 +70,13 @@
         <!-- PASO 1 -->
         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
           <h2 class="text-sm font-semibold text-gray-300 mb-1"><span class="text-yellow-400">1.</span> Vincular tu terminal</h2>
-          <p class="text-xs text-gray-400 mb-3">Ingresá el ID del equipo (ej: mtml-26oc-0001) y el código de vinculación de la etiqueta.</p>
+          <p class="text-xs text-gray-400 mb-3">En la pantalla del equipo tocá <b>VINCULAR EQUIPO</b> (o mantené 5 s → SISTEMA). Escaneá el QR con tu celular, o escribí el ID y el código que muestra.</p>
           <div class="space-y-2">
             <input type="text" id="new-device-id" placeholder="mtml-26oc-0001" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono text-yellow-400 focus:outline-none focus:border-yellow-500">
-            <input type="text" id="new-device-code" placeholder="Código de vinculación" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono uppercase focus:outline-none focus:border-yellow-500">
+            <input type="text" id="new-device-code" placeholder="Código (ej: ABCD-EFGH)" class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm w-full font-mono uppercase focus:outline-none focus:border-yellow-500">
             <button id="btn-add-device" class="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-950 font-bold px-3 py-1.5 rounded text-xs transition">+ Vincular terminal</button>
           </div>
-          <div id="devices-list" class="mt-3 flex flex-wrap gap-2"></div>
+          <div id="devices-list" class="mt-3 space-y-2"></div>
         </div>
 
         <!-- PASO 2 -->
@@ -189,6 +189,7 @@
 
     // ---------- DATOS DEL PANEL ----------
     async function inicializarDashboard() {
+      aplicarVinculacionPendiente();
       try {
         const res = await fetch('/paneldecontrol/api/mis-datos', {
           headers: { 'Authorization': 'Bearer ' + sessionJWT }
@@ -199,10 +200,18 @@
         const dispositivos = datos.dispositivos || [];
         const tieneDispositivos = dispositivos.length > 0;
 
-        // Paso 1: lista de equipos vinculados
-        document.getElementById('devices-list').innerHTML = dispositivos.map(d =>
-          '<span class="px-2 py-1 bg-gray-900 border border-gray-600 rounded text-xs font-mono text-yellow-400">' + esc(d.device_id) + '</span>'
-        ).join('');
+        // Paso 1: lista de equipos vinculados (con botón Desvincular)
+        const lista = document.getElementById('devices-list');
+        lista.innerHTML = '';
+        dispositivos.forEach(d => {
+          const fila = document.createElement('div');
+          fila.className = 'flex items-center justify-between gap-2 px-2 py-1 bg-gray-900 border border-gray-600 rounded';
+          fila.innerHTML =
+            '<span class="text-xs font-mono text-yellow-400">' + esc(d.device_id) + '</span>' +
+            '<button class="btn-desvincular text-[11px] px-2 py-1 bg-red-700 hover:bg-red-600 text-white rounded font-semibold transition">Desvincular</button>';
+          fila.querySelector('.btn-desvincular').addEventListener('click', () => desvincularDispositivo(d.device_id));
+          lista.appendChild(fila);
+        });
 
         // Paso 2: Mercado Pago
         const mpContainer = document.getElementById('mp-status-container');
@@ -298,6 +307,50 @@
         const errData = await res.json().catch(() => ({}));
         mostrarBanner(errData.error || 'No se pudieron guardar los cambios.', 'error');
       }
+    }
+
+    async function desvincularDispositivo(deviceId) {
+      if (!confirm('¿Desvincular ' + deviceId + ' de tu cuenta?\n\nEl equipo dejará de cobrar hasta que se vincule de nuevo y volverá a los valores por defecto.')) return;
+
+      const res = await fetch('/paneldecontrol/api/desvincular-dispositivo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionJWT },
+        body: JSON.stringify({ deviceId })
+      });
+
+      if (res.ok) {
+        mostrarBanner('Equipo ' + deviceId + ' desvinculado.', 'ok');
+        inicializarDashboard();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        mostrarBanner(errData.error || 'No se pudo desvincular el equipo.', 'error');
+      }
+    }
+
+    // QR del equipo: llega como ?vincular=ID&codigo=XXXX. Se guarda durante el login y se precarga en el panel.
+    (function capturarVinculacionDelQR() {
+      try {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get('vincular') && q.get('codigo')) {
+          sessionStorage.setItem('vinculacion_pendiente', JSON.stringify({ id: q.get('vincular'), codigo: q.get('codigo') }));
+          const u = new URL(window.location.href);
+          u.searchParams.delete('vincular');
+          u.searchParams.delete('codigo');
+          history.replaceState({}, '', u.pathname + u.search);
+        }
+      } catch (e) { /* sin sessionStorage: se ignora */ }
+    })();
+
+    function aplicarVinculacionPendiente() {
+      try {
+        const raw = sessionStorage.getItem('vinculacion_pendiente');
+        if (!raw) return;
+        sessionStorage.removeItem('vinculacion_pendiente');
+        const v = JSON.parse(raw);
+        document.getElementById('new-device-id').value = v.id || '';
+        document.getElementById('new-device-code').value = v.codigo || '';
+        mostrarBanner('Datos del equipo cargados desde el QR. Tocá "Vincular terminal" para confirmar.', 'ok');
+      } catch (e) { /* ignorar */ }
     }
 
     // ---------- EVENTOS EN TIEMPO REAL ----------
