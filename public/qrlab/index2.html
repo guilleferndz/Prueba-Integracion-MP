@@ -1,1 +1,55 @@
+<!doctype html>
+<html lang="es-AR" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0b0e11"/>
+  <meta name="description" content="Matemetal QR — Gestión de dispensers, operaciones y reportes."/>
+  <title>Matemetal QR · Panel de gestión</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="./styles.css?v=1.0.0"/>
+</head>
+<body>
+  <div id="app" class="shell">
+    <aside id="sidebar" class="sidebar" aria-label="Menú de navegación">
+      <div class="side-head">
+        <a class="brand" href="./index.html" aria-label="Matemetal QR, Inicio">
+          <img class="brand-image dark-brand" src="./assets/matemetal-white.png" alt="Matemetal"/>
+          <img class="brand-image light-brand" src="./assets/matemetal-black.png" alt="Matemetal"/>
+          <span class="brand-qr">QR<span class="brand-dot"></span></span>
+        </a>
+        <span class="brand-tagline">GESTIÓN DE DISPENSERS</span>
+      </div>
+      <div class="side-section-label">PLATAFORMA</div>
+      <nav id="nav" class="nav" aria-label="Secciones">
+        <button class="nav-item active" data-page="dashboard" type="button"><span class="nav-icon" data-icon="layout-dashboard"></span><span>Inicio</span></button>
+        <button class="nav-item" data-page="establishments" type="button"><span class="nav-icon" data-icon="building-2"></span><span>Establecimientos</span></button>
+        <button class="nav-item" data-page="devices" type="button"><span class="nav-icon" data-icon="radio-tower"></span><span>Dispositivos</span></button>
+        <button class="nav-item" data-page="history" type="button"><span class="nav-icon" data-icon="history"></span><span>Historial de dispositivos</span></button>
+        <button class="nav-item" data-page="transactions" type="button"><span class="nav-icon" data-icon="receipt-text"></span><span>Transacciones</span></button>
+        <button class="nav-item" data-page="notifications" type="button"><span class="nav-icon" data-icon="bell"></span><span>Notificaciones</span></button>
+        <button class="nav-item" data-page="map" type="button"><span class="nav-icon" data-icon="map-pinned"></span><span>Ubicaciones</span></button>
+        <button class="nav-item" data-page="reports" type="button"><span class="nav-icon" data-icon="chart-column-increasing"></span><span>Informes</span></button>
+      </nav>
+      <div class="side-section-label side-section-label-bottom">CONFIGURACIÓN</div>
+      <nav class="nav"><button class="nav-item" data-page="settings" type="button"><span class="nav-icon" data-icon="settings-2"></span><span>Ajustes</span></button></nav>
+      <div class="side-bottom">
+        <div class="demo-side"><span class="live-indicator"></span><div><strong>Entorno de demostración</strong><small>Sin pagos ni equipos reales</small></div></div>
+        <div class="side-foot">MATEMETAL QR <span>v1.0</span></div>
+      </div>
+    </aside>
+    <div id="mobileShade" class="mobile-shade" aria-hidden="true"></div>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="top-left"><button id="menuToggle" class="icon-button mobile-menu" type="button" aria-label="Abrir menú"><span data-icon="menu"></span></button><div class="top-breadcrumb">MATEMETAL <span>/</span> <strong id="breadcrumb">Inicio</strong></div></div>
+        <div class="top-right"><span class="environment-chip"><span class="tiny-dot"></span> MODO DEMO</span><button id="themeToggle" type="button" class="icon-button" title="Cambiar tema" aria-label="Cambiar tema"><span data-icon="sun-moon"></span></button><div class="top-divider"></div><div class="user-avatar">M</div><div class="user-meta"><strong>Administrador</strong><span>Matemetal QR</span></div></div>
+      </header>
+      <main class="main" id="main" tabindex="-1"></main>
+    </div>
+  </div>
+  <div id="modalRoot" aria-live="polite"></div>
+  <div id="toastRoot" aria-live="polite"></div>
+  <script defer src="./app.js?v=1.0.0"></script>
+</body>
+</html>
 
