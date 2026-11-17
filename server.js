@@ -49,7 +49,7 @@ app.use('/paneldecontrol', express.static(path.join(__dirname, 'public')));
 app.get('/paneldecontrol', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 // NUEVA SUBRUTA: /qrlab
 app.use('/qrlab', express.static(path.join(__dirname, 'public', 'qrlab')));
-app.get('/qrlab', (req, res) => res.sendFile(path.join(__dirname, 'public', 'qrlab', 'index.html')));
+app.get('/qrlab', (req, res) => res.sendFile(path.join(__dirname, 'public', 'qrlab', 'index2.html')));
 // landing
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
