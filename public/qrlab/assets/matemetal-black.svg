@@ -1,0 +1,5 @@
+<svg xmlns="http://w3.org" viewBox="0 0 190 36" fill="none">
+  <rect x="2" y="4" width="28" height="28" rx="6" fill="#111827"/>
+  <path d="M9 24V12h3.2l3.8 6.5L19.8 12H23v12h-3v-7.2l-4 6.5-4-6.5V24H9z" fill="#facc15"/>
+  <text x="38" y="24" fill="#111827" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="18" letter-spacing="1">MATEMETAL</text>
+</svg>
